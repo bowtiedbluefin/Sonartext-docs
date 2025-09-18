@@ -131,7 +131,11 @@
       "method": "bearer",
       "name": "Authorization",
       "inputPrefix": "stx_live_"
-    }
+    },
+    "playground": {
+      "mode": "show"
+    },
+    "maintainOrder": true
   },
   "contextual": {
     "options": [
