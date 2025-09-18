@@ -135,7 +135,10 @@
     "playground": {
       "mode": "show"
     },
-    "maintainOrder": true
+    "maintainOrder": true,
+    "playground": {
+      "mode": "show"
+    }
   },
   "contextual": {
     "options": [
