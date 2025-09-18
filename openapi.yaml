@@ -37,7 +37,7 @@ info:
     - **Upload initiation**: 10 requests/minute per user
     - **Direct transcription**: Plan-based (10-100 requests/minute)
     - **Status checks**: 60 requests/minute per user
-  version: 5.2
+  version: "5.2"
   contact:
     name: Sonartext Support
     url: https://sonartext.com

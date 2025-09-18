@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Sonartext API Documentation",
+  "name": "Sonartext API",
   "colors": {
     "primary": "#2563EB",
     "light": "#3B82F6",
@@ -135,10 +135,7 @@
     "playground": {
       "mode": "show"
     },
-    "maintainOrder": true,
-    "playground": {
-      "mode": "show"
-    }
+    "maintainOrder": true
   },
   "contextual": {
     "options": [
