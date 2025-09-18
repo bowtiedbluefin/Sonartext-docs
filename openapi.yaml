@@ -1,0 +1,1175 @@
+openapi: 3.0.3
+info:
+  title: Sonartext Transcription API
+  description: |
+    High-performance transcription API with OpenAI compatibility, R2 multipart uploads, and zero-bandwidth-cost processing.
+    
+    ## Upload Methods
+    **🆕 R2 Multipart Uploads** (Recommended for files >100MB):
+    - Supports files up to 6GB+
+    - Zero bandwidth costs via Cloudflare R2
+    - Parallel part uploads with retry capability
+    - Browser-to-R2 direct upload (bypasses API limits)
+    
+    **Legacy Direct Uploads** (For existing clients):
+    - Supports files up to 2GB
+    - Traditional multipart/form-data upload
+    
+    ## Authentication
+    **For R2 uploads** (new endpoints):
+    ```
+    Authorization: Bearer firebase_id_token_here
+    # OR (easier for API users)
+    Authorization: Bearer stx_live_your_api_key_here
+    ```
+    
+    **For direct uploads** (existing):
+    ```
+    Authorization: Bearer stx_live_your_api_key_here
+    ```
+    
+    ## File Formats
+    Supports audio and video files:
+    - **R2 uploads**: Up to 6GB per file
+    - **Direct uploads**: Up to 2GB per file
+    
+    ## Rate Limits
+    - **Upload initiation**: 10 requests/minute per user
+    - **Direct transcription**: Plan-based (10-100 requests/minute)
+    - **Status checks**: 60 requests/minute per user
+  version: 5.2
+  contact:
+    name: Sonartext Support
+    url: https://sonartext.com
+    email: support@sonartext.com
+  license:
+    name: Private
+servers:
+  - url: https://api.sonartext.com
+    description: Production server
+  - url: http://localhost
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: |
+        Returns the health status of all services including database, transcription engine, 
+        R2 storage connectivity, and system cleanup processes.
+      tags: [System]
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /v1/uploads/initiate:
+    post:
+      summary: Initiate multipart upload to R2
+      description: |
+        Start a multipart upload for large files (>100MB recommended).
+        Returns presigned URLs for uploading file parts directly to Cloudflare R2.
+        
+        **Benefits**: 
+        - Supports files up to 5GB+ 
+        - Zero bandwidth costs
+        - Resumable uploads with retry capability
+        - Parallel part uploads for faster transfers
+      tags: [Uploads]
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, contentType, totalSize]
+              properties:
+                filename:
+                  type: string
+                  description: Original filename
+                  example: "large-audio-file.wav"
+                contentType:
+                  type: string
+                  description: MIME type of the file
+                  example: "audio/wav"
+                totalSize:
+                  type: integer
+                  description: Total file size in bytes
+                  example: 2147483648
+                  minimum: 1
+                  maximum: 6442450944
+                metadata:
+                  type: object
+                  description: Optional file metadata (transcription params handled in complete endpoint)
+                  properties:
+                    originalFilename:
+                      type: string
+                      description: Original filename for reference
+                      example: "meeting-recording.wav"
+                    description:
+                      type: string
+                      description: Optional file description
+                      example: "Q1 team meeting"
+      responses:
+        '200':
+          description: Multipart upload initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultipartUploadInit'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/uploads/complete:
+    post:
+      summary: Complete multipart upload and start transcription
+      description: |
+        Complete the multipart upload and automatically create a transcription job.
+        Provide the ETags returned from each part upload to R2, plus all transcription parameters.
+        This is where you specify how the uploaded file should be transcribed.
+      tags: [Uploads]
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadId, parts]
+              properties:
+                uploadId:
+                  type: string
+                  description: Upload ID from initiate response
+                  example: "clp2x3q4y0001ab2cde3fghij"
+                parts:
+                  type: array
+                  description: Array of completed parts with ETags
+                  items:
+                    type: object
+                    required: [partNumber, etag]
+                    properties:
+                      partNumber:
+                        type: integer
+                        minimum: 1
+                        description: Part number
+                      etag:
+                        type: string
+                        description: ETag returned by R2 for this part
+                        example: "\"d41d8cd98f00b204e9800998ecf8427e\""
+                # Transcription Parameters
+                model:
+                  type: string
+                  default: whisper-1
+                  description: Model to use (ignored, always uses large-v3)
+                  example: whisper-1
+                language:
+                  type: string
+                  description: Language code (ISO 639-1). Auto-detected if not specified.
+                  example: en
+                response_format:
+                  type: string
+                  enum: [json, verbose_json, text, srt, vtt]
+                  default: verbose_json
+                  description: Output format for transcription
+                timestamp_granularities:
+                  type: array
+                  items:
+                    type: string
+                    enum: [segment, word]
+                  default: [segment]
+                  description: Level of timestamp detail
+                enable_diarization:
+                  type: boolean
+                  default: false
+                  description: Enable speaker identification
+                min_speakers:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  description: Minimum number of speakers (for diarization)
+                max_speakers:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  description: Maximum number of speakers (for diarization)
+                output_content:
+                  type: string
+                  enum: [both, text_only, timestamps_only, metadata_only]
+                  default: both
+                  description: What to include in output
+              anyOf:
+                - required: [file]
+                  description: Direct file upload
+                - required: [r2_bucket, r2_key] 
+                  description: R2 object reference
+                - required: [download_url]
+                  description: S3 presigned URL download
+      responses:
+        '200':
+          description: Upload completed and job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultipartUploadComplete'
+        '400':
+          description: Invalid request or upload state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/uploads/abort:
+    post:
+      summary: Abort multipart upload
+      description: Cancel an in-progress multipart upload and cleanup R2 resources
+      tags: [Uploads]
+      security:
+        - FirebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uploadId]
+              properties:
+                uploadId:
+                  type: string
+                  description: Upload ID to abort
+      responses:
+        '200':
+          description: Upload aborted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  uploadId:
+                    type: string
+                  status:
+                    type: string
+                    example: "aborted"
+
+  /v1/uploads/{uploadId}/status:
+    get:
+      summary: Get upload progress status
+      description: Check the current status and progress of a multipart upload
+      tags: [Uploads]
+      security:
+        - FirebaseAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Upload ID to check
+      responses:
+        '200':
+          description: Upload status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadStatus'
+
+
+
+  /v1/audio/speech:
+    post:
+      summary: Generate speech from text
+      description: |
+        OpenAI-compatible text-to-speech endpoint that converts text into natural-sounding audio.
+        
+        **Features**:
+        - Multiple voice options with different accents and styles
+        - Adjustable speech speed (0.25x to 4.0x)
+        - Multiple audio formats (MP3, WAV, FLAC, AAC)
+        - High-quality neural TTS models
+        
+        **Authentication**: API key required (stx_live_* format)
+        **Billing**: Charged per character processed
+        **Rate Limits**: Based on your plan (10-100 requests/minute)
+      tags: [Text-to-Speech]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input:
+                  type: string
+                  description: The text to generate audio for
+                  example: "Hello, this is a sample text for speech synthesis."
+                  maxLength: 4096
+                model:
+                  type: string
+                  description: TTS model to use
+                  default: tts-kokoro
+                  example: tts-kokoro
+                voice:
+                  type: string
+                  description: Voice to use for speech generation
+                  default: af_sky
+                  example: af_sky
+                  enum: [
+                    af_alloy, af_aoede, af_bella, af_heart, af_jadzia, af_jessica, 
+                    af_kore, af_nicole, af_nova, af_river, af_sarah, af_sky,
+                    am_adam, am_echo, am_eric, am_fenrir, am_liam, am_michael, 
+                    am_onyx, am_puck, am_santa,
+                    bf_alice, bf_emma, bf_lily,
+                    bm_daniel, bm_fable, bm_george, bm_lewis,
+                    zf_xiaobei, zf_xiaoni, zf_xiaoxiao, zf_xiaoyi,
+                    zm_yunjian, zm_yunxi, zm_yunxia, zm_yunyang,
+                    ff_siwis,
+                    hf_alpha, hf_beta, hm_omega, hm_psi,
+                    if_sara, im_nicola,
+                    jf_alpha, jf_gongitsune, jf_nezumi, jf_tebukuro, jm_kumo,
+                    pf_dora, pm_alex, pm_santa,
+                    ef_dora, em_alex, em_santa
+                  ]
+                response_format:
+                  type: string
+                  description: Audio format for the output
+                  default: mp3
+                  enum: [mp3, wav, flac, aac, opus, pcm]
+                speed:
+                  type: number
+                  description: Speed of speech (0.25 to 4.0)
+                  default: 1.0
+                  minimum: 0.25
+                  maximum: 4.0
+                  example: 1.0
+                streaming:
+                  type: boolean
+                  description: Whether to stream the audio response
+                  default: false
+      responses:
+        '200':
+          description: Audio generated successfully
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (MP3 format)
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (WAV format)
+            audio/flac:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (FLAC format)
+            audio/aac:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (AAC format)
+            audio/opus:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (Opus format)
+            audio/pcm:
+              schema:
+                type: string
+                format: binary
+                description: Generated audio file (PCM format)
+        '400':
+          description: Bad request (invalid parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (invalid API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '402':
+          description: Payment required (insufficient credits)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: insufficient_credits
+                    description: Error code indicating insufficient credits
+                  balance:
+                    type: object
+                    description: Current credit balance information
+                    properties:
+                      cents:
+                        type: integer
+                        description: Balance in cents
+                      dollars:
+                        type: number
+                        description: Balance in dollars
+                      formatted:
+                        type: string
+                        description: Formatted balance string
+                  cost:
+                    type: object
+                    description: Cost information for this request
+                    properties:
+                      cents:
+                        type: integer
+                        description: Cost in cents
+                      dollars:
+                        type: number
+                        description: Cost in dollars
+                      formatted:
+                        type: string
+                        description: Formatted cost string
+                  characterCount:
+                    type: integer
+                    description: Number of characters in input text
+                  testMode:
+                    type: boolean
+                    description: Whether billing is in test mode
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/audio/transcriptions:
+    post:
+      summary: Transcribe audio file
+      description: |
+        OpenAI-compatible transcription endpoint with multiple file source options:
+        
+        **1. Direct Upload** (most common): Upload file directly in request body
+        **2. R2 Reference** (for re-transcription): Use `r2Key` from previous `/v1/uploads/initiate` response
+        **3. S3 Presigned URL** (for integrations): Provide presigned URL for us to download
+        
+        **When to use each:**
+        - **Direct Upload**: Small files (<150MB), immediate results
+        - **R2 Reference**: Re-transcribe files using `r2Key` from `/v1/uploads/initiate` response
+        - **S3 URL**: Integration with external storage (your own S3/R2/GCS buckets)
+        
+        **💡 Example R2 Re-transcription Workflow:**
+        1. Upload large file: `POST /v1/uploads/initiate` → get `r2Key`
+        2. Complete upload: `POST /v1/uploads/complete` → transcribe with settings A
+        3. Re-transcribe same file: `POST /v1/audio/transcriptions` with `r2Key` + settings B
+        
+        **Streaming**: Responses are streamed in real-time without buffering.
+        **Billing**: Charged per second of audio transcribed.
+      tags: [Transcription]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Audio or video file to transcribe (for direct upload)
+                r2_bucket:
+                  type: string
+                  description: R2 bucket name (use "sonartext-uploads" unless you have your own R2)
+                  example: "sonartext-uploads"
+                r2_key:
+                  type: string
+                  description: |
+                    R2 object key returned from `/v1/uploads/initiate` response.
+                    Use this to re-transcribe already uploaded files with different parameters.
+                  example: "uploads/user123/1234567890-audio.wav"
+                download_url:
+                  type: string
+                  format: uri
+                  description: |
+                    Presigned URL to download file from S3-compatible storage.
+                    For integrations where files are stored in your own S3/R2/GCS buckets.
+                  example: "https://mybucket.s3.amazonaws.com/file.wav?X-Amz-Signature=..."
+                model:
+                  type: string
+                  default: whisper-1
+                  description: Model to use (ignored, always uses large-v3)
+                  example: whisper-1
+                language:
+                  type: string
+                  description: Language code (ISO 639-1). Auto-detected if not specified.
+                  example: en
+                response_format:
+                  type: string
+                  enum: [json, verbose_json, text, srt, vtt]
+                  default: json
+                  description: Output format for transcription
+                timestamp_granularities:
+                  type: array
+                  items:
+                    type: string
+                    enum: [segment, word]
+                  default: [segment]
+                  description: Level of timestamp detail
+                enable_diarization:
+                  type: boolean
+                  default: false
+                  description: Enable speaker identification
+                min_speakers:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  description: Minimum number of speakers (for diarization)
+                max_speakers:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  description: Maximum number of speakers (for diarization)
+                output_content:
+                  type: string
+                  enum: [both, text_only, timestamps_only, metadata_only]
+                  default: both
+                  description: What to include in output
+      responses:
+        '200':
+          description: Transcription successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+            text/plain:
+              schema:
+                type: string
+                description: Plain text transcription (when response_format=text)
+        '400':
+          description: Bad request (invalid parameters or no file)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (invalid API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '402':
+          description: Payment required (insufficient credits)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+
+  /jobs:
+    get:
+      summary: List transcription jobs
+      description: Get paginated list of user's transcription jobs
+      tags: [Jobs]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, processing, completed, failed]
+      responses:
+        '200':
+          description: Jobs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsList'
+
+  /jobs/{jobId}:
+    get:
+      summary: Get job status
+      description: Get status and details of a specific transcription job
+      tags: [Jobs]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: cly123abc456
+      responses:
+        '200':
+          description: Job details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetails'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Cancel job
+      description: Cancel a queued or processing job
+      tags: [Jobs]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    example: failed
+                  message:
+                    type: string
+                    example: Job cancelled successfully
+        '404':
+          description: Job not found or cannot be cancelled
+
+  /jobs/{jobId}/result:
+    get:
+      summary: Get job result
+      description: Get the transcription result for a completed job
+      tags: [Jobs]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job result retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+        '404':
+          description: Job not found or not completed
+
+  /jobs/stats/summary:
+    get:
+      summary: Get usage statistics
+      description: Get summary of user's transcription usage and statistics
+      tags: [Jobs]
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageStats'
+
+  /auth/upload-token:
+    post:
+      summary: Generate upload token
+      description: |
+        Generate short-lived token for browser uploads. 
+        Supports both Firebase authentication (for browser clients) and API key authentication (for direct API access).
+        Use your API key for easy Swagger UI testing.
+      tags: [Auth]
+      security:
+        - FirebaseAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Upload token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadToken:
+                    type: string
+                    description: JWT token for upload authorization
+                  maxFileSize:
+                    type: integer
+                    description: Maximum file size in bytes
+                  allowedTypes:
+                    type: array
+                    items:
+                      type: string
+                    description: Allowed MIME types
+                  expiresAt:
+                    type: integer
+                    description: Token expiration timestamp
+        '401':
+          description: Invalid Firebase token
+
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: Use your API key with stx_live_ prefix
+
+    FirebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID token for R2 upload operations
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: integer
+          description: Uptime in milliseconds
+        services:
+          type: object
+          properties:
+            database:
+              $ref: '#/components/schemas/ServiceHealth'
+            morpheus:
+              $ref: '#/components/schemas/ServiceHealth'
+            storage:
+              $ref: '#/components/schemas/ServiceHealth'
+            cleanup:
+              $ref: '#/components/schemas/ServiceHealth'
+        system:
+          type: object
+          properties:
+            memory:
+              type: object
+              properties:
+                used:
+                  type: integer
+                total:
+                  type: integer
+                usage:
+                  type: number
+            disk:
+              type: object
+              properties:
+                uploadsSize:
+                  type: integer
+                tempSize:
+                  type: integer
+
+    ServiceHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy, error]
+        latency:
+          type: number
+          description: Response time in milliseconds
+        error:
+          type: string
+        details:
+          type: object
+          description: Service-specific health details
+          example:
+            # For storage service (R2):
+            r2_connectivity: "ok"
+            bucket: "sonartext-uploads"
+            # For morpheus service:
+            model_loaded: true
+            gpu_memory_used: "4.2GB"
+
+    TranscriptionResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Full transcription text
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptSegment'
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptWord'
+        language:
+          type: string
+          description: Detected language code
+        duration:
+          type: number
+          description: Audio duration in seconds
+        speakers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpeakerInfo'
+
+    TranscriptSegment:
+      type: object
+      properties:
+        id:
+          type: integer
+        start:
+          type: number
+          description: Start time in seconds
+        end:
+          type: number
+          description: End time in seconds
+        text:
+          type: string
+        speaker:
+          type: string
+          description: Speaker ID (if diarization enabled)
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    TranscriptWord:
+      type: object
+      properties:
+        word:
+          type: string
+        start:
+          type: number
+        end:
+          type: number
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        speaker:
+          type: string
+
+    SpeakerInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        segments:
+          type: array
+          items:
+            type: integer
+
+    JobDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        type:
+          type: string
+          default: transcription
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        duration:
+          type: number
+          description: Audio duration in seconds (for completed jobs)
+        error:
+          type: string
+          description: Error message (for failed jobs)
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        resultAvailable:
+          type: boolean
+        estimatedCompletion:
+          type: string
+          format: date-time
+          description: Estimated completion time (for processing jobs)
+
+    JobsList:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobDetails'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+            hasNext:
+              type: boolean
+            hasPrev:
+              type: boolean
+
+    UsageStats:
+      type: object
+      properties:
+        total:
+          type: object
+          properties:
+            jobs:
+              type: integer
+            completed:
+              type: integer
+            failed:
+              type: integer
+            processing:
+              type: integer
+            totalSeconds:
+              type: number
+        last30Days:
+          type: object
+          properties:
+            jobs:
+              type: integer
+            seconds:
+              type: number
+        successRate:
+          type: string
+          description: Success rate as percentage
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+        jobId:
+          type: string
+          description: Job ID if applicable
+
+    # NEW: R2 Multipart Upload Schemas
+    MultipartUploadInit:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          description: Unique identifier for this multipart upload
+          example: "clp2x3q4y0001ab2cde3fghij"
+        r2UploadId:
+          type: string
+          description: R2 internal upload ID
+          example: "2~Vg5SJ5RRQON9vnefrO2XgB"
+        r2Key:
+          type: string
+          description: |
+            R2 object key where your file will be stored.
+            💡 Save this! You can use it with /v1/audio/transcriptions to re-transcribe 
+            the same file with different parameters without re-uploading.
+          example: "uploads/user123/1703123456-audio.wav"
+        partSize:
+          type: integer
+          description: Size of each part in bytes
+          example: 33554432
+        totalParts:
+          type: integer
+          description: Total number of parts
+          example: 64
+        partUrls:
+          type: array
+          description: Presigned URLs for uploading each part
+          items:
+            type: string
+            format: uri
+            example: "https://account.r2.cloudflarestorage.com/bucket/key?X-Amz-Algorithm=..."
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the upload expires
+          example: "2024-01-01T12:15:00.000Z"
+
+    MultipartUploadComplete:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        jobId:
+          type: string
+          description: Created transcription job ID
+          example: "clp2x3q4y0002ab2cde3fghij"
+        uploadId:
+          type: string
+          description: Completed upload ID
+          example: "clp2x3q4y0001ab2cde3fghij"
+        r2Key:
+          type: string
+          description: R2 object key for the uploaded file
+          example: "uploads/user123/1703123456-audio.wav"
+        status:
+          type: string
+          example: "queued"
+          description: Initial job status
+
+    UploadStatus:
+      type: object
+      properties:
+        uploadId:
+          type: string
+        status:
+          type: string
+          enum: [initiated, uploading, completed, aborted, failed]
+        filename:
+          type: string
+        totalSize:
+          type: string
+          description: Size in bytes as string (for BigInt compatibility)
+        totalParts:
+          type: integer
+        completedParts:
+          type: integer
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Upload progress (0.0 to 1.0)
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        parts:
+          type: array
+          items:
+            type: object
+            properties:
+              partNumber:
+                type: integer
+              status:
+                type: string
+                enum: [pending, uploaded, failed]
+              uploadedAt:
+                type: string
+                format: date-time
+              size:
+                type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Text-to-Speech
+    description: Text-to-speech conversion endpoints
+  - name: Transcription
+    description: Audio/video transcription endpoints (supports direct upload, R2 references, S3 URLs)
+  - name: Uploads
+    description: R2 multipart upload endpoints for large files
+  - name: Jobs
+    description: Job management and status endpoints  
+  - name: Auth
+    description: Authentication and authorization endpoints

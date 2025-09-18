@@ -8,7 +8,7 @@
     "dark": "#1D4ED8"
   },
   "favicon": "/favicon.svg",
-  "openapi": "../sonartext/sonartext-API/openapi.yaml",
+  "openapi": "openapi.yaml",
   "navigation": {
     "tabs": [
       {
