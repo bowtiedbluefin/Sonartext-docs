@@ -1,0 +1,197 @@
+---
+title: 'Health Check'
+openapi: 'GET /health'
+---
+
+The health endpoint provides comprehensive system status information including database connectivity, transcription engine status, R2 storage connectivity, and system cleanup processes.
+
+## Response Details
+
+The health check returns detailed information about all critical system components:
+
+### Service Health Status
+
+<ResponseField name="status" type="string" required>
+  Overall system health status
+  
+  - `healthy`: All services operating normally
+  - `degraded`: Some services experiencing issues but system is functional
+  - `unhealthy`: Critical services are down
+</ResponseField>
+
+<ResponseField name="services" type="object" required>
+  Health status for each critical service
+  
+  <Expandable title="Service Details">
+    <ResponseField name="database" type="ServiceHealth">
+      Database connectivity and performance
+    </ResponseField>
+    <ResponseField name="morpheus" type="ServiceHealth">
+      Transcription engine status and GPU utilization
+    </ResponseField>
+    <ResponseField name="storage" type="ServiceHealth">
+      R2 storage connectivity and bucket access
+    </ResponseField>
+    <ResponseField name="cleanup" type="ServiceHealth">
+      System cleanup processes status
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="system" type="object">
+  System resource information
+  
+  <Expandable title="System Resources">
+    <ResponseField name="memory" type="object">
+      Memory usage statistics
+      <Expandable title="Memory Details">
+        <ResponseField name="used" type="integer">
+          Used memory in bytes
+        </ResponseField>
+        <ResponseField name="total" type="integer">
+          Total available memory in bytes
+        </ResponseField>
+        <ResponseField name="usage" type="number">
+          Memory usage percentage (0.0 to 1.0)
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="disk" type="object">
+      Disk usage information
+      <Expandable title="Disk Details">
+        <ResponseField name="uploadsSize" type="integer">
+          Size of uploads directory in bytes
+        </ResponseField>
+        <ResponseField name="tempSize" type="integer">
+          Size of temporary files directory in bytes
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+<ResponseExample>
+```json Healthy System
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "uptime": 3600000,
+  "services": {
+    "database": {
+      "status": "healthy",
+      "latency": 12.5,
+      "details": {
+        "connections": {
+          "active": 5,
+          "idle": 10,
+          "total": 15
+        }
+      }
+    },
+    "morpheus": {
+      "status": "healthy",
+      "latency": 45.2,
+      "details": {
+        "model_loaded": true,
+        "gpu_memory_used": "4.2GB",
+        "queue_length": 2
+      }
+    },
+    "storage": {
+      "status": "healthy",
+      "latency": 89.1,
+      "details": {
+        "r2_connectivity": "ok",
+        "bucket": "sonartext-uploads"
+      }
+    },
+    "cleanup": {
+      "status": "healthy",
+      "latency": 5.0,
+      "details": {
+        "last_cleanup": "2024-01-15T09:45:00.000Z",
+        "files_cleaned": 143
+      }
+    }
+  },
+  "system": {
+    "memory": {
+      "used": 8589934592,
+      "total": 17179869184,
+      "usage": 0.5
+    },
+    "disk": {
+      "uploadsSize": 104857600,
+      "tempSize": 52428800
+    }
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Degraded System
+{
+  "status": "degraded",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "uptime": 3600000,
+  "services": {
+    "database": {
+      "status": "healthy",
+      "latency": 12.5
+    },
+    "morpheus": {
+      "status": "degraded",
+      "latency": 156.7,
+      "error": "High GPU temperature detected",
+      "details": {
+        "model_loaded": true,
+        "gpu_memory_used": "4.2GB",
+        "gpu_temperature": 89,
+        "queue_length": 8
+      }
+    },
+    "storage": {
+      "status": "healthy",
+      "latency": 89.1
+    },
+    "cleanup": {
+      "status": "healthy",
+      "latency": 5.0
+    }
+  },
+  "system": {
+    "memory": {
+      "used": 14495514624,
+      "total": 17179869184,
+      "usage": 0.84
+    },
+    "disk": {
+      "uploadsSize": 104857600,
+      "tempSize": 52428800
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Usage
+
+The health endpoint is useful for:
+
+- **Monitoring system status** in production environments
+- **Load balancer health checks** to route traffic appropriately  
+- **Alerting systems** to notify when services are degraded
+- **Debugging performance issues** by checking service latencies
+- **Capacity planning** by monitoring resource usage trends
+
+<Note>
+This endpoint does not require authentication and can be called frequently for monitoring purposes.
+</Note>
+
+<Warning>
+If the health endpoint returns a 503 status code with `"status": "unhealthy"`, the system may not be able to process transcription requests reliably.
+</Warning>

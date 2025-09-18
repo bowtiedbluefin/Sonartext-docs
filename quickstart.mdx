@@ -1,80 +1,271 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start'
+description: 'Get started with the Sonartext API in minutes - transcribe your first audio file'
 ---
 
-## Get started in three steps
+Get up and running with the Sonartext API in just a few minutes. This guide will walk you through making your first transcription request.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+<Steps>
+<Step title="Create an Account">
+  Sign up for a free account at [app.sonartext.com](https://app.sonartext.com).
+</Step>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Step title="Get Your API Key">
+  Navigate to the API Keys section and generate your first API key (starts with `stx_live_`).
+  
+  <Warning>
+    Keep your API key secure and never expose it in client-side code.
+  </Warning>
+</Step>
+
+<Step title="Add Credits">
+  Add credits to your account to start transcribing.
+</Step>
+</Steps>
+
+## Your First Transcription
+
+<Tabs>
+<Tab title="cURL">
+```bash
+curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here' \
+  -F 'file=@audio.wav' \
+  -F 'model=whisper-1' \
+  -F 'response_format=verbose_json'
+```
+</Tab>
+
+<Tab title="JavaScript">
+```javascript
+async function transcribeAudio(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('model', 'whisper-1');
+  formData.append('response_format', 'verbose_json');
+
+  const response = await fetch('https://api.sonartext.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: formData
+  });
+
+  return response.json();
+}
+```
+</Tab>
+
+<Tab title="Python">
+```python
+import requests
+
+def transcribe_audio(file_path, api_key):
+    url = 'https://api.sonartext.com/v1/audio/transcriptions'
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    headers = {'Authorization': f'Bearer {api_key}'}
+    files = {'file': open(file_path, 'rb')}
+    data = {'model': 'whisper-1', 'response_format': 'verbose_json'}
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    response = requests.post(url, headers=headers, files=files, data=data)
+    return response.json()
+```
+</Tab>
+</Tabs>
 
-### Step 2: Deploy your changes
+## Understanding the Response
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+```json
+{
+  "text": "Welcome to the Sonartext API. This is your transcription.",
+  "segments": [
+    {
+      "id": 0,
+      "start": 0.5,
+      "end": 4.2,
+      "text": "Welcome to the Sonartext API.",
+      "confidence": 0.94
+    }
+  ],
+  "language": "en",
+  "duration": 8.3
+}
+```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Advanced Features
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Speaker Diarization
 
-### Step 3: Go live
+Identify different speakers in your audio:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```javascript
+const formData = new FormData();
+formData.append('file', file);
+formData.append('enable_diarization', 'true');
+formData.append('min_speakers', '2');
+formData.append('max_speakers', '4');
+```
 
-## Next steps
+### Different Formats
 
-Now that you have your docs running, explore these key features:
+Get subtitles for videos:
+
+```bash
+curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here' \
+  -F 'file=@video.mp4' \
+  -F 'response_format=srt' \
+  -o subtitles.srt
+```
+
+## Text-to-Speech
+
+Generate natural speech from text:
+
+<Tabs>
+<Tab title="cURL">
+```bash
+curl -X POST 'https://api.sonartext.com/v1/audio/speech' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "input": "Hello! This is generated speech.",
+    "voice": "af_sky",
+    "response_format": "mp3"
+  }' \
+  --output speech.mp3
+```
+</Tab>
+
+<Tab title="JavaScript">
+```javascript
+async function generateSpeech(text) {
+  const response = await fetch('https://api.sonartext.com/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      input: text,
+      voice: 'af_sky',
+      response_format: 'mp3'
+    })
+  });
+
+  return response.blob();
+}
+```
+</Tab>
+</Tabs>
+
+## Large Files (Multipart Upload)
+
+For files over 100MB, use multipart uploads:
+
+```javascript
+// 1. Initiate upload
+const initResponse = await fetch('/v1/uploads/initiate', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${uploadToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    filename: file.name,
+    contentType: file.type,
+    totalSize: file.size
+  })
+});
+
+const { uploadId, partUrls } = await initResponse.json();
+
+// 2. Upload parts (simplified)
+const parts = await uploadParts(file, partUrls);
+
+// 3. Complete upload
+await fetch('/v1/uploads/complete', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${uploadToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    uploadId,
+    parts,
+    response_format: 'verbose_json'
+  })
+});
+```
+
+## Job Management
+
+Monitor long-running transcriptions:
+
+```javascript
+async function checkJobStatus(jobId) {
+  const response = await fetch(`/jobs/${jobId}`, {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  const job = await response.json();
+  
+  if (job.status === 'completed') {
+    // Get results
+    const resultResponse = await fetch(`/jobs/${jobId}/result`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    return resultResponse.json();
+  }
+  
+  return job;
+}
+```
+
+## Error Handling
+
+Always handle errors gracefully:
+
+```javascript
+try {
+  const result = await transcribeAudio(file);
+  console.log('Success:', result.text);
+} catch (error) {
+  if (error.status === 401) {
+    console.error('Invalid API key');
+  } else if (error.status === 402) {
+    console.error('Insufficient credits');
+  } else if (error.status === 429) {
+    console.error('Rate limit exceeded');
+  } else {
+    console.error('Transcription failed:', error.message);
+  }
+}
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+<Card title="Authentication" icon="key" href="/authentication">
+  Learn about API keys and security
 </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
+<Card title="API Reference" icon="book" href="/api-reference/introduction">
+  Explore all endpoints and features
 </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
+<Card title="Upload Guide" icon="cloud-arrow-up" href="/guides/uploads">
+  Master large file uploads
 </Card>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
+<Card title="Dashboard" icon="chart-line" href="https://app.sonartext.com">
+  Manage your account and usage
 </Card>
-
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This quick start covers the basics. For production apps, implement proper error handling, rate limiting, and security practices.
 </Note>

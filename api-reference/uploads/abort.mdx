@@ -1,0 +1,262 @@
+---
+title: 'Abort Multipart Upload'
+openapi: 'POST /v1/uploads/abort'
+---
+
+Cancel an in-progress multipart upload and cleanup R2 resources. Use this endpoint when you need to cancel an upload that won't be completed.
+
+## When to Use
+
+<AccordionGroup>
+<Accordion title="❌ Upload Failed">
+  When part uploads consistently fail and you want to start over with a new upload.
+</Accordion>
+
+<Accordion title="⏰ Upload Expired">
+  When the upload has expired (check `expiresAt` from initiate response) and you need to clean up resources.
+</Accordion>
+
+<Accordion title="🚫 User Cancelled">
+  When a user cancels an upload in your application and you want to free up resources immediately.
+</Accordion>
+
+<Accordion title="📱 Network Issues">
+  When network connectivity issues prevent completion and you want to retry with a fresh upload.
+</Accordion>
+</AccordionGroup>
+
+## Request Parameters
+
+<ParamField body="uploadId" type="string" required>
+  Upload ID to abort. This is the `uploadId` returned from the `/v1/uploads/initiate` response.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the upload was successfully aborted.
+  
+  Example: `true`
+</ResponseField>
+
+<ResponseField name="uploadId" type="string" required>
+  The upload ID that was aborted for confirmation.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  New status of the upload after aborting.
+  
+  Example: `"aborted"`
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function abortUpload(uploadId, uploadToken) {
+  const response = await fetch('/v1/uploads/abort', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${uploadToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      uploadId: uploadId
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to abort upload: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log(`Upload ${data.uploadId} has been aborted`);
+  
+  return data;
+}
+
+// Example with error handling
+try {
+  await abortUpload('clp2x3q4y0001ab2cde3fghij', uploadToken);
+  console.log('Upload cancelled successfully');
+} catch (error) {
+  console.error('Failed to cancel upload:', error.message);
+}
+```
+
+```python Python
+import requests
+
+def abort_upload(upload_id, upload_token):
+    url = 'https://api.sonartext.com/v1/uploads/abort'
+    
+    payload = {
+        'uploadId': upload_id
+    }
+    
+    headers = {
+        'Authorization': f'Bearer {upload_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Upload {data['uploadId']} has been aborted")
+        return data
+    else:
+        raise Exception(f"Failed to abort upload: {response.text}")
+
+# Example usage with error handling
+try:
+    result = abort_upload('clp2x3q4y0001ab2cde3fghij', 'your_token_here')
+    print(f"Upload status: {result['status']}")
+except Exception as e:
+    print(f"Error aborting upload: {e}")
+```
+
+```curl cURL
+curl -X POST 'https://api.sonartext.com/v1/uploads/abort' \
+  -H 'Authorization: Bearer your_upload_token_here' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "uploadId": "clp2x3q4y0001ab2cde3fghij"
+  }'
+```
+</CodeGroup>
+
+## Practical Example: Upload with Retry Logic
+
+Here's a complete example showing how to implement upload retry logic with abort:
+
+```javascript
+async function uploadWithRetry(file, maxRetries = 3) {
+  let attempt = 0;
+  let currentUploadId = null;
+  
+  while (attempt < maxRetries) {
+    try {
+      attempt++;
+      console.log(`Upload attempt ${attempt} of ${maxRetries}`);
+      
+      // Abort previous upload if it exists
+      if (currentUploadId) {
+        await abortUpload(currentUploadId, uploadToken);
+      }
+      
+      // Start new upload
+      const initResponse = await initiateUpload(file);
+      currentUploadId = initResponse.uploadId;
+      
+      // Upload parts
+      const parts = await uploadAllParts(file, initResponse);
+      
+      // Complete upload
+      const result = await completeUpload(currentUploadId, parts);
+      
+      console.log(`Upload successful! Job ID: ${result.jobId}`);
+      return result;
+      
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed:`, error.message);
+      
+      if (attempt === maxRetries) {
+        // Final cleanup
+        if (currentUploadId) {
+          try {
+            await abortUpload(currentUploadId, uploadToken);
+          } catch (abortError) {
+            console.warn('Failed to cleanup upload:', abortError.message);
+          }
+        }
+        throw new Error(`Upload failed after ${maxRetries} attempts: ${error.message}`);
+      }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+    }
+  }
+}
+```
+
+## Response Examples
+
+<ResponseExample>
+```json Success Response
+{
+  "success": true,
+  "uploadId": "clp2x3q4y0001ab2cde3fghij",
+  "status": "aborted"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+<ResponseExample>
+```json Upload Not Found
+{
+  "error": "upload_not_found",
+  "message": "Upload with the specified ID was not found",
+  "details": {
+    "uploadId": "invalid_upload_id"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Upload Already Completed
+{
+  "error": "upload_already_completed",
+  "message": "Cannot abort an upload that has already been completed",
+  "details": {
+    "uploadId": "clp2x3q4y0001ab2cde3fghij",
+    "currentStatus": "completed"
+  }
+}
+```
+</ResponseExample>
+
+## Resource Cleanup
+
+<Info>
+When you abort an upload, the following resources are automatically cleaned up:
+
+- **R2 Storage**: All uploaded parts are deleted from Cloudflare R2
+- **Database Records**: Upload metadata is marked as aborted
+- **Presigned URLs**: Remaining unused presigned URLs are invalidated
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="🔄 Implement Proper Retry Logic">
+  Always abort the previous upload before starting a new one to avoid resource waste and potential conflicts.
+</Accordion>
+
+<Accordion title="⏰ Handle Timeouts Gracefully">
+  Monitor upload progress and abort uploads that exceed your application's timeout limits.
+</Accordion>
+
+<Accordion title="🧹 Cleanup on User Cancel">
+  Abort uploads immediately when users cancel to free up resources and maintain good UX.
+</Accordion>
+
+<Accordion title="📊 Monitor Upload Health">
+  Use the status endpoint to monitor upload progress and abort unhealthy uploads automatically.
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+Once an upload is aborted, it cannot be resumed. All uploaded parts are deleted permanently. You'll need to start a completely new upload if you want to upload the same file.
+</Warning>
+
+<Card title="Check Upload Status" icon="chart-line" href="/api-reference/uploads/status">
+  Monitor upload progress before deciding to abort
+</Card>

@@ -1,0 +1,433 @@
+---
+title: 'Cancel Job'
+openapi: 'DELETE /jobs/{jobId}'
+---
+
+Cancel a queued or processing transcription job. Use this endpoint to stop jobs that are no longer needed or to free up processing resources.
+
+## Path Parameters
+
+<ParamField path="jobId" type="string" required>
+  Unique identifier for the job to cancel.
+  
+  **Example**: `"clp2x3q4y0002ab2cde3fghij"`
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="id" type="string" required>
+  The job ID that was cancelled.
+  
+  **Example**: `"clp2x3q4y0002ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  New status of the job after cancellation (always `"failed"`).
+  
+  **Value**: `"failed"`
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Confirmation message about the cancellation.
+  
+  **Example**: `"Job cancelled successfully"`
+</ResponseField>
+
+## When Jobs Can Be Cancelled
+
+<AccordionGroup>
+<Accordion title="✅ Queued Jobs">
+  **Status**: `queued`
+  
+  Jobs waiting in the processing queue can always be cancelled immediately without any processing costs.
+</Accordion>
+
+<Accordion title="⚠️ Processing Jobs">
+  **Status**: `processing`
+  
+  Jobs currently being processed can be cancelled, but may have already incurred partial processing costs. Cancellation stops further processing immediately.
+</Accordion>
+
+<Accordion title="❌ Completed Jobs">
+  **Status**: `completed`
+  
+  Successfully completed jobs cannot be cancelled as processing has already finished and results are available.
+</Accordion>
+
+<Accordion title="❌ Failed Jobs">
+  **Status**: `failed`
+  
+  Already failed jobs cannot be cancelled as they're no longer active.
+</Accordion>
+</AccordionGroup>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function cancelJob(jobId) {
+  const response = await fetch(`/jobs/${jobId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Job not found');
+    }
+    if (response.status === 400) {
+      const error = await response.json();
+      throw new Error(error.message || 'Job cannot be cancelled');
+    }
+    throw new Error(`Failed to cancel job: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Cancel a specific job
+try {
+  const result = await cancelJob('clp2x3q4y0002ab2cde3fghij');
+  console.log(`Job cancelled: ${result.message}`);
+} catch (error) {
+  console.error('Cancellation failed:', error.message);
+}
+
+// Cancel multiple jobs
+async function cancelMultipleJobs(jobIds) {
+  const results = [];
+  
+  for (const jobId of jobIds) {
+    try {
+      const result = await cancelJob(jobId);
+      results.push({ jobId, success: true, result });
+    } catch (error) {
+      results.push({ jobId, success: false, error: error.message });
+    }
+  }
+  
+  return results;
+}
+
+// Cancel all queued jobs
+async function cancelAllQueuedJobs() {
+  // First, get all queued jobs
+  const response = await fetch('/jobs?status=queued&limit=100', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  
+  const data = await response.json();
+  const queuedJobIds = data.jobs.map(job => job.id);
+  
+  if (queuedJobIds.length === 0) {
+    console.log('No queued jobs to cancel');
+    return [];
+  }
+  
+  console.log(`Cancelling ${queuedJobIds.length} queued jobs...`);
+  return await cancelMultipleJobs(queuedJobIds);
+}
+```
+
+```python Python
+import requests
+
+def cancel_job(job_id, api_key):
+    url = f'https://api.sonartext.com/jobs/{job_id}'
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+    
+    response = requests.delete(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 404:
+        raise Exception('Job not found')
+    elif response.status_code == 400:
+        error = response.json()
+        raise Exception(error.get('message', 'Job cannot be cancelled'))
+    else:
+        raise Exception(f"Failed to cancel job: {response.text}")
+
+# Cancel a job with error handling
+def safe_cancel_job(job_id, api_key):
+    try:
+        result = cancel_job(job_id, api_key)
+        print(f"✅ Job {job_id} cancelled: {result['message']}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to cancel job {job_id}: {e}")
+        return False
+
+# Bulk cancel jobs by status
+def cancel_jobs_by_status(api_key, status='queued'):
+    """Cancel all jobs with a specific status."""
+    
+    # Get jobs with the specified status
+    url = f'https://api.sonartext.com/jobs?status={status}&limit=100'
+    headers = {'Authorization': f'Bearer {api_key}'}
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch {status} jobs: {response.text}")
+    
+    jobs = response.json()['jobs']
+    
+    if not jobs:
+        print(f"No {status} jobs to cancel")
+        return
+    
+    print(f"Found {len(jobs)} {status} jobs to cancel")
+    
+    cancelled_count = 0
+    failed_count = 0
+    
+    for job in jobs:
+        if safe_cancel_job(job['id'], api_key):
+            cancelled_count += 1
+        else:
+            failed_count += 1
+    
+    print(f"\nSummary: {cancelled_count} cancelled, {failed_count} failed")
+
+# Usage examples
+cancel_jobs_by_status('stx_live_your_api_key', 'queued')
+```
+
+```curl cURL
+# Cancel a specific job
+curl -X DELETE 'https://api.sonartext.com/jobs/clp2x3q4y0002ab2cde3fghij' \
+  -H 'Authorization: Bearer stx_live_your_api_key'
+```
+</CodeGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Successful Cancellation
+{
+  "id": "clp2x3q4y0002ab2cde3fghij",
+  "status": "failed",
+  "message": "Job cancelled successfully"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+<ResponseExample>
+```json Job Not Found
+{
+  "error": "job_not_found",
+  "message": "Job with the specified ID was not found",
+  "details": {
+    "jobId": "invalid_job_id"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Job Cannot Be Cancelled
+{
+  "error": "job_not_cancellable",
+  "message": "Job cannot be cancelled because it has already completed",
+  "details": {
+    "jobId": "clp2x3q4y0002ab2cde3fghij",
+    "currentStatus": "completed"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Job Already Failed
+{
+  "error": "job_not_cancellable",
+  "message": "Job cannot be cancelled because it has already failed",
+  "details": {
+    "jobId": "clp2x3q4y0002ab2cde3fghij",
+    "currentStatus": "failed",
+    "originalError": "Unable to decode audio file"
+  }
+}
+```
+</ResponseExample>
+
+## Batch Cancellation Patterns
+
+<CodeGroup>
+```javascript User-Initiated Mass Cancel
+async function cancelUserJobs(userId) {
+  // Get all active jobs for user (implement user filtering in your system)
+  const activeJobs = await getUserActiveJobs(userId);
+  
+  const cancellationPromises = activeJobs
+    .filter(job => ['queued', 'processing'].includes(job.status))
+    .map(job => 
+      cancelJob(job.id).catch(error => ({
+        jobId: job.id,
+        error: error.message
+      }))
+    );
+
+  const results = await Promise.all(cancellationPromises);
+  
+  const successful = results.filter(r => !r.error);
+  const failed = results.filter(r => r.error);
+  
+  console.log(`Cancelled ${successful.length} jobs`);
+  if (failed.length > 0) {
+    console.log(`Failed to cancel ${failed.length} jobs:`, failed);
+  }
+  
+  return { successful: successful.length, failed: failed.length };
+}
+```
+
+```python Emergency Queue Clear
+import requests
+import time
+from datetime import datetime, timedelta
+
+def emergency_queue_clear(api_key, older_than_minutes=30):
+    """Cancel all queued jobs older than specified minutes."""
+    
+    url = 'https://api.sonartext.com/jobs?status=queued&limit=100'
+    headers = {'Authorization': f'Bearer {api_key}'}
+    
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch queued jobs: {response.text}")
+    
+    jobs = response.json()['jobs']
+    cutoff_time = datetime.now() - timedelta(minutes=older_than_minutes)
+    
+    old_jobs = []
+    for job in jobs:
+        created_time = datetime.fromisoformat(job['createdAt'].replace('Z', '+00:00'))
+        if created_time.replace(tzinfo=None) < cutoff_time:
+            old_jobs.append(job)
+    
+    if not old_jobs:
+        print(f"No queued jobs older than {older_than_minutes} minutes")
+        return
+    
+    print(f"Found {len(old_jobs)} old queued jobs to cancel")
+    
+    for job in old_jobs:
+        try:
+            result = cancel_job(job['id'], api_key)
+            print(f"Cancelled {job['fileName']} (queued {older_than_minutes}+ min ago)")
+        except Exception as e:
+            print(f"Failed to cancel {job['id']}: {e}")
+
+# Usage - cancel jobs queued for more than 30 minutes
+emergency_queue_clear('stx_live_your_api_key', older_than_minutes=30)
+```
+</CodeGroup>
+
+## Advanced Cancellation Strategies
+
+<AccordionGroup>
+<Accordion title="🔄 Smart Queue Management">
+  Cancel older queued jobs when adding new high-priority jobs to reduce wait times.
+</Accordion>
+
+<Accordion title="💰 Cost Control">
+  Implement automatic cancellation for jobs that exceed expected processing times to control costs.
+</Accordion>
+
+<Accordion title="👥 User Management">
+  Allow users to cancel their own jobs through your application interface.
+</Accordion>
+
+<Accordion title="🚨 System Maintenance">
+  Cancel all pending jobs before system maintenance windows to ensure clean shutdowns.
+</Accordion>
+
+<Accordion title="📊 Resource Optimization">
+  Cancel stuck jobs that have been processing for unusually long periods.
+</Accordion>
+</AccordionGroup>
+
+## Cancellation Monitoring
+
+<CodeGroup>
+```javascript Cancellation with Confirmation
+async function cancelWithConfirmation(jobId, reason = 'User requested') {
+  // First, get current job status
+  const jobDetails = await getJobDetails(jobId);
+  
+  if (!['queued', 'processing'].includes(jobDetails.status)) {
+    throw new Error(`Job cannot be cancelled (status: ${jobDetails.status})`);
+  }
+  
+  console.log(`Cancelling job: ${jobDetails.fileName}`);
+  console.log(`Reason: ${reason}`);
+  console.log(`Current status: ${jobDetails.status}`);
+  
+  // Cancel the job
+  const result = await cancelJob(jobId);
+  
+  // Log cancellation details
+  console.log(`✅ Cancellation confirmed: ${result.message}`);
+  
+  // Optional: Track cancellation for analytics
+  trackCancellation({
+    jobId,
+    fileName: jobDetails.fileName,
+    originalStatus: jobDetails.status,
+    reason,
+    timestamp: new Date().toISOString()
+  });
+  
+  return result;
+}
+```
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="⚡ Quick Response">
+  Cancel jobs as soon as you know they're not needed to free up processing resources for other users.
+</Accordion>
+
+<Accordion title="🔍 Status Check First">
+  Always check job status before attempting cancellation to avoid unnecessary API calls.
+</Accordion>
+
+<Accordion title="📝 Track Cancellations">
+  Log cancellations with reasons for debugging and analytics purposes.
+</Accordion>
+
+<Accordion title="🛡️ Error Handling">
+  Implement proper error handling since not all jobs can be cancelled (completed, already failed).
+</Accordion>
+
+<Accordion title="👥 User Communication">
+  Provide clear feedback to users about cancellation success or failure reasons.
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+**Important**: Cancelling a job immediately stops processing and marks it as failed. This action cannot be undone. Make sure you really want to cancel the job before calling this endpoint.
+</Warning>
+
+<Note>
+**Billing**: You are not charged for cancelled queued jobs. For processing jobs that are cancelled, you may be charged for partial processing time depending on how much work was completed.
+</Note>
+
+<Card title="List Jobs" icon="list" href="/api-reference/jobs/list">
+  Find jobs to cancel by listing all your jobs with filtering
+</Card>
+
+<Card title="Job Details" icon="magnifying-glass" href="/api-reference/jobs/get">
+  Check job status before cancelling
+</Card>

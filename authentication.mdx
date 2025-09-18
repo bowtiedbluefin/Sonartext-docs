@@ -1,0 +1,529 @@
+---
+title: 'Authentication'
+description: 'Learn how to authenticate with the Sonartext API using API keys and Firebase tokens'
+---
+
+The Sonartext API supports two authentication methods depending on your use case: API keys for server-to-server communication and Firebase tokens for browser-based applications.
+
+## API Key Authentication (Recommended)
+
+API keys are the primary authentication method for server-to-server integrations and most use cases.
+
+### Getting Your API Key
+
+<Steps>
+<Step title="Sign up for an Account">
+  Create an account at [app.sonartext.com](https://app.sonartext.com) if you haven't already.
+</Step>
+
+<Step title="Navigate to API Keys">
+  Go to the API Keys section in your dashboard.
+</Step>
+
+<Step title="Generate a Key">
+  Click "Generate New Key" to create your API key. Keys start with `stx_live_` for production or `stx_test_` for testing.
+</Step>
+
+<Step title="Secure Your Key">
+  Store your API key securely and never expose it in client-side code or public repositories.
+</Step>
+</Steps>
+
+### Using API Keys
+
+<CodeGroup>
+```bash cURL
+curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here' \
+  -F 'file=@audio.wav' \
+  -F 'model=whisper-1'
+```
+
+```javascript JavaScript
+const response = await fetch('/v1/audio/transcriptions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.SONARTEXT_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    r2_bucket: 'sonartext-uploads',
+    r2_key: 'uploads/user123/audio.wav',
+    model: 'whisper-1'
+  })
+});
+```
+
+```python Python
+import requests
+
+headers = {
+    'Authorization': f'Bearer {api_key}',
+    'Content-Type': 'application/json'
+}
+
+response = requests.post(
+    'https://api.sonartext.com/v1/audio/transcriptions',
+    headers=headers,
+    json={
+        'r2_bucket': 'sonartext-uploads',
+        'r2_key': 'uploads/user123/audio.wav',
+        'model': 'whisper-1'
+    }
+)
+```
+
+```node.js Node.js
+const axios = require('axios');
+
+const apiKey = process.env.SONARTEXT_API_KEY;
+
+const response = await axios.post(
+  'https://api.sonartext.com/v1/audio/transcriptions',
+  {
+    r2_bucket: 'sonartext-uploads',
+    r2_key: 'uploads/user123/audio.wav',
+    model: 'whisper-1'
+  },
+  {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+```
+</CodeGroup>
+
+## Firebase Authentication (Browser Apps)
+
+For browser-based applications that need to perform direct uploads to R2 storage, you can use Firebase authentication.
+
+### When to Use Firebase Auth
+
+<AccordionGroup>
+<Accordion title="✅ Direct Browser Uploads">
+  When implementing file uploads directly from the browser to R2 storage without going through your server.
+</Accordion>
+
+<Accordion title="✅ User-Specific Access">
+  When you need to associate uploads with specific authenticated users in your Firebase project.
+</Accordion>
+
+<Accordion title="✅ R2 Multipart Uploads">
+  For the `/v1/uploads/*` endpoints that support multipart uploads to R2.
+</Accordion>
+</AccordionGroup>
+
+### Setup Firebase Authentication
+
+<Steps>
+<Step title="Configure Firebase">
+  Set up Firebase Authentication in your project and configure your Firebase project with Sonartext.
+</Step>
+
+<Step title="Authenticate Users">
+  Use Firebase Auth to sign in users and get ID tokens.
+  
+  ```javascript
+  import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+  
+  const auth = getAuth();
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const idToken = await userCredential.user.getIdToken();
+  ```
+</Step>
+
+<Step title="Use ID Token">
+  Use the Firebase ID token for R2 upload operations.
+  
+  ```javascript
+  const response = await fetch('/v1/uploads/initiate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      filename: 'audio.wav',
+      contentType: 'audio/wav',
+      totalSize: file.size
+    })
+  });
+  ```
+</Step>
+</Steps>
+
+## Authentication Comparison
+
+| Method | Use Case | Endpoints | Security |
+|--------|----------|-----------|----------|
+| **API Key** | Server-to-server, most integrations | All endpoints | Server-side only |
+| **Firebase Token** | Browser uploads, user authentication | Upload endpoints primarily | Client & server side |
+
+## Security Best Practices
+
+<AccordionGroup>
+<Accordion title="🔐 API Key Security">
+- **Never expose API keys** in client-side code, public repositories, or logs
+- **Use environment variables** to store API keys securely
+- **Rotate keys regularly** and immediately if compromised
+- **Use separate keys** for development, staging, and production environments
+- **Monitor API key usage** for unusual activity
+</Accordion>
+
+<Accordion title="🛡️ Firebase Token Security">
+- **Validate tokens server-side** before performing sensitive operations
+- **Use token refresh** to maintain valid authentication
+- **Implement proper logout** to invalidate tokens
+- **Monitor authentication events** for security issues
+- **Use Firebase Security Rules** to control access
+</Accordion>
+
+<Accordion title="🌐 Network Security">
+- **Always use HTTPS** for API requests
+- **Implement request signing** for additional security if needed
+- **Use proper CORS configuration** for browser applications
+- **Rate limit your requests** to prevent abuse
+- **Log authentication failures** for monitoring
+</Accordion>
+</AccordionGroup>
+
+## Environment Setup
+
+### Server-Side (.env file)
+
+```bash
+# Production API key
+SONARTEXT_API_KEY=stx_live_1234567890abcdef...
+
+# Test API key for development
+SONARTEXT_TEST_API_KEY=stx_test_1234567890abcdef...
+
+# Environment
+NODE_ENV=production
+```
+
+### Client-Side (Environment Variables)
+
+```javascript
+// For browser applications using build tools
+const apiKey = process.env.NEXT_PUBLIC_SONARTEXT_API_KEY; // Next.js
+const apiKey = process.env.REACT_APP_SONARTEXT_API_KEY;   // Create React App
+const apiKey = import.meta.env.VITE_SONARTEXT_API_KEY;    // Vite
+
+// Note: Only use client-side env vars for upload tokens, never for main API key
+```
+
+## Error Handling
+
+<AccordionGroup>
+<Accordion title="401 - Unauthorized">
+**Cause**: Invalid, missing, or expired authentication credentials.
+
+```json
+{
+  "error": "unauthorized",
+  "message": "Invalid API key provided"
+}
+```
+
+**Solutions**:
+- Check that your API key is correct and active
+- Ensure the Authorization header is properly formatted
+- Verify the key hasn't expired or been revoked
+</Accordion>
+
+<Accordion title="403 - Forbidden">
+**Cause**: Valid authentication but insufficient permissions.
+
+```json
+{
+  "error": "forbidden", 
+  "message": "API key does not have permission for this operation"
+}
+```
+
+**Solutions**:
+- Check your subscription plan limits
+- Verify your account is in good standing
+- Contact support if permissions seem incorrect
+</Accordion>
+
+<Accordion title="429 - Rate Limited">
+**Cause**: Too many requests with your authentication credentials.
+
+```json
+{
+  "error": "rate_limit_exceeded",
+  "message": "Rate limit exceeded for this API key",
+  "retryAfter": 60
+}
+```
+
+**Solutions**:
+- Implement exponential backoff
+- Check your rate limits in the dashboard
+- Consider upgrading your plan for higher limits
+</Accordion>
+</AccordionGroup>
+
+## Testing Authentication
+
+<Tabs>
+<Tab title="Test API Key">
+```bash
+# Test your API key with a simple request
+curl -X GET 'https://api.sonartext.com/health' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here'
+
+# Should return 200 OK with health status
+```
+
+```javascript
+// Test API key in JavaScript
+async function testApiKey(apiKey) {
+  try {
+    const response = await fetch('https://api.sonartext.com/health', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+    
+    if (response.ok) {
+      console.log('✅ API key is valid');
+      return true;
+    } else {
+      console.log('❌ API key test failed:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.log('❌ API key test error:', error.message);
+    return false;
+  }
+}
+```
+</Tab>
+
+<Tab title="Test Upload Token">
+```javascript
+// Test Firebase token for upload operations
+async function testUploadToken(firebaseIdToken) {
+  try {
+    const response = await fetch('https://api.sonartext.com/auth/upload-token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firebaseIdToken}`
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Upload token generated:', data.expiresAt);
+      return data;
+    } else {
+      console.log('❌ Upload token test failed:', response.status);
+      return null;
+    }
+  } catch (error) {
+    console.log('❌ Upload token test error:', error.message);
+    return null;
+  }
+}
+```
+</Tab>
+</Tabs>
+
+## Authentication Flow Examples
+
+### Server-to-Server Integration
+
+<CodeGroup>
+```javascript Express.js Middleware
+const express = require('express');
+const app = express();
+
+// Authentication middleware
+function authenticateAPI(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+  }
+  
+  const apiKey = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  if (!apiKey.startsWith('stx_live_') && !apiKey.startsWith('stx_test_')) {
+    return res.status(401).json({ error: 'Invalid API key format' });
+  }
+  
+  // Store API key for use in route handlers
+  req.sonartext = { apiKey };
+  next();
+}
+
+// Protected route
+app.post('/transcribe', authenticateAPI, async (req, res) => {
+  try {
+    const response = await fetch('https://api.sonartext.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${req.sonartext.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(req.body)
+    });
+    
+    const result = await response.json();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Transcription failed' });
+  }
+});
+```
+
+```python Flask Authentication
+from flask import Flask, request, jsonify
+import requests
+import os
+
+app = Flask(__name__)
+
+def authenticate_request():
+    """Validate API key from Authorization header."""
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None, 'Missing or invalid authorization header'
+    
+    api_key = auth_header[7:]  # Remove 'Bearer ' prefix
+    
+    if not (api_key.startswith('stx_live_') or api_key.startswith('stx_test_')):
+        return None, 'Invalid API key format'
+    
+    return api_key, None
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    # Authenticate request
+    api_key, error = authenticate_request()
+    if error:
+        return jsonify({'error': error}), 401
+    
+    try:
+        # Forward request to Sonartext API
+        response = requests.post(
+            'https://api.sonartext.com/v1/audio/transcriptions',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            },
+            json=request.json
+        )
+        
+        return jsonify(response.json()), response.status_code
+        
+    except Exception as e:
+        return jsonify({'error': 'Transcription failed'}), 500
+```
+</CodeGroup>
+
+### Browser Upload Integration
+
+```javascript
+// Complete browser upload flow with Firebase auth
+class SonartextUploader {
+  constructor(firebaseApp) {
+    this.auth = getAuth(firebaseApp);
+    this.uploadToken = null;
+  }
+
+  async getUploadToken() {
+    const user = this.auth.currentUser;
+    if (!user) {
+      throw new Error('User must be authenticated');
+    }
+
+    const idToken = await user.getIdToken();
+    
+    const response = await fetch('/auth/upload-token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get upload token');
+    }
+
+    const data = await response.json();
+    this.uploadToken = data.uploadToken;
+    return data;
+  }
+
+  async uploadFile(file, transcriptionOptions = {}) {
+    if (!this.uploadToken) {
+      await this.getUploadToken();
+    }
+
+    // Initiate multipart upload
+    const initResponse = await fetch('/v1/uploads/initiate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.uploadToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+        totalSize: file.size
+      })
+    });
+
+    const { uploadId, partUrls, partSize } = await initResponse.json();
+
+    // Upload parts
+    const parts = [];
+    for (let i = 0; i < partUrls.length; i++) {
+      const start = i * partSize;
+      const end = Math.min(start + partSize, file.size);
+      const partData = file.slice(start, end);
+
+      const partResponse = await fetch(partUrls[i], {
+        method: 'PUT',
+        body: partData
+      });
+
+      parts.push({
+        partNumber: i + 1,
+        etag: partResponse.headers.get('ETag')
+      });
+    }
+
+    // Complete upload
+    const completeResponse = await fetch('/v1/uploads/complete', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.uploadToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        uploadId,
+        parts,
+        ...transcriptionOptions
+      })
+    });
+
+    return completeResponse.json();
+  }
+}
+```
+
+<Card title="Get API Keys" icon="key" href="https://app.sonartext.com/keys">
+  Generate and manage your API keys in the dashboard
+</Card>
+
+<Card title="Quick Start" icon="rocket" href="/quickstart">
+  Start using the API with practical examples
+</Card>

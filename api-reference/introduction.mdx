@@ -1,33 +1,183 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: 'API Introduction'
+description: 'High-performance transcription and text-to-speech API with OpenAI compatibility'
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Welcome to Sonartext API
 
-## Welcome
+The Sonartext API provides high-performance transcription and text-to-speech capabilities with OpenAI compatibility, R2 multipart uploads, and zero-bandwidth-cost processing.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
+<CardGroup cols={2}>
+<Card title="Transcription" icon="microphone" href="/api-reference/transcription/transcriptions">
+  Convert audio and video files to text with advanced features like speaker diarization and multiple output formats.
 </Card>
+
+<Card title="Text-to-Speech" icon="volume-high" href="/api-reference/tts/speech">
+  Generate natural-sounding speech from text using multiple voice options and adjustable speeds.
+</Card>
+
+<Card title="File Uploads" icon="cloud-arrow-up" href="/api-reference/uploads/initiate">
+  Upload large files efficiently using R2 multipart uploads with support for files up to 6GB.
+</Card>
+
+<Card title="Job Management" icon="list-check" href="/api-reference/jobs/list">
+  Track and manage your transcription jobs with detailed status information and results.
+</Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+<Accordion title="🆕 R2 Multipart Uploads (Recommended for files >100MB)">
+- Supports files up to 6GB+
+- Zero bandwidth costs via Cloudflare R2
+- Parallel part uploads with retry capability
+- Browser-to-R2 direct upload (bypasses API limits)
+</Accordion>
+
+<Accordion title="📝 Advanced Transcription">
+- OpenAI-compatible transcription endpoint
+- Multiple file source options (direct upload, R2 reference, S3 presigned URLs)
+- Speaker identification (diarization)
+- Multiple output formats (JSON, text, SRT, VTT)
+- Word-level and segment-level timestamps
+</Accordion>
+
+<Accordion title="🎵 High-Quality Text-to-Speech">
+- Multiple voice options with different accents and styles
+- Adjustable speech speed (0.25x to 4.0x)
+- Multiple audio formats (MP3, WAV, FLAC, AAC, Opus, PCM)
+- High-quality neural TTS models
+</Accordion>
+
+<Accordion title="⚡ Performance & Reliability">
+- Real-time streaming responses
+- Automatic language detection
+- Comprehensive health monitoring
+- Plan-based rate limiting
+</Accordion>
+</AccordionGroup>
+
+## Upload Methods
+
+### R2 Multipart Uploads (Recommended)
+For files larger than 100MB, use our R2 multipart upload system:
+
+1. **Initiate**: Start a multipart upload with `/v1/uploads/initiate`
+2. **Upload**: Send file parts directly to Cloudflare R2 using presigned URLs
+3. **Complete**: Finish the upload and start transcription with `/v1/uploads/complete`
+
+### Legacy Direct Uploads
+For existing clients and smaller files:
+- Traditional multipart/form-data upload
+- Supports files up to 2GB
+- Direct to `/v1/audio/transcriptions` endpoint
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+<Tabs>
+<Tab title="API Key (Recommended)">
+Use your Sonartext API key for all endpoints:
+
+```bash
+Authorization: Bearer stx_live_your_api_key_here
+```
+</Tab>
+
+<Tab title="Firebase Token">
+For browser clients using R2 uploads:
+
+```bash
+Authorization: Bearer firebase_id_token_here
+```
+</Tab>
+</Tabs>
+
+<Card title="Get Your API Key" icon="key" href="https://app.sonartext.com/keys">
+  Generate and manage your API keys in the Sonartext dashboard
+</Card>
+
+## File Formats
+
+Sonartext supports a wide range of audio and video file formats:
+
+| Upload Method | Max File Size | Supported Formats |
+|---------------|---------------|-------------------|
+| **R2 Uploads** | Up to 6GB | All audio/video formats |
+| **Direct Uploads** | Up to 2GB | All audio/video formats |
+
+Common formats include: MP3, WAV, FLAC, AAC, MP4, MOV, AVI, and many more.
+
+## Rate Limits
+
+<Info>
+Rate limits are based on your subscription plan and help ensure fair usage across all users.
+</Info>
+
+| Operation | Rate Limit |
+|-----------|------------|
+| **Upload initiation** | 10 requests/minute per user |
+| **Direct transcription** | Plan-based (10-100 requests/minute) |
+| **Status checks** | 60 requests/minute per user |
+| **Text-to-speech** | Plan-based (10-100 requests/minute) |
+
+## Base URL
+
+All API endpoints are available at:
+
+```
+https://api.sonartext.com
+```
+
+For local development:
+```
+http://localhost
+```
+
+## Error Handling
+
+The API uses standard HTTP status codes and returns detailed error information:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
+{
+  "error": "insufficient_credits",
+  "message": "Insufficient credits to process this request",
+  "details": {
+    "balance": {
+      "cents": 250,
+      "dollars": 2.50,
+      "formatted": "$2.50"
+    },
+    "cost": {
+      "cents": 300,
+      "dollars": 3.00,
+      "formatted": "$3.00"
+    }
   }
-]
+}
 ```
+
+## Getting Started
+
+1. **Get an API key** from the [Sonartext dashboard](https://app.sonartext.com/keys)
+2. **Choose your upload method** based on your file sizes
+3. **Make your first request** using the examples in our endpoint documentation
+4. **Monitor your usage** through the jobs and stats endpoints
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Follow our step-by-step guide to make your first API call in minutes
+</Card>
+
+## Support
+
+Need help getting started or have questions about the API?
+
+<CardGroup cols={2}>
+<Card title="Documentation" icon="book" href="/guides/uploads">
+  Comprehensive guides and tutorials
+</Card>
+
+<Card title="Support" icon="life-ring" href="https://sonartext.com/support">
+  Get help from our support team
+</Card>
+</CardGroup>

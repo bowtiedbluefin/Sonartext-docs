@@ -1,0 +1,295 @@
+---
+title: 'Initiate Multipart Upload'
+openapi: 'POST /v1/uploads/initiate'
+---
+
+Start a multipart upload for large files (>100MB recommended). Returns presigned URLs for uploading file parts directly to Cloudflare R2.
+
+## Benefits of R2 Multipart Uploads
+
+<CardGroup cols={2}>
+<Card title="Large File Support" icon="file">
+  Supports files up to 6GB+ in size
+</Card>
+
+<Card title="Zero Bandwidth Costs" icon="coins">
+  Direct uploads to R2 bypass API bandwidth limits
+</Card>
+
+<Card title="Resumable Uploads" icon="rotate-right">
+  Retry capability and parallel part uploads for faster transfers
+</Card>
+
+<Card title="Browser Direct Upload" icon="browser">
+  Upload directly from browser to R2, bypassing API limits
+</Card>
+</CardGroup>
+
+## Request Parameters
+
+<ParamField body="filename" type="string" required>
+  Original filename for the file being uploaded.
+  
+  Example: `"large-audio-file.wav"`
+</ParamField>
+
+<ParamField body="contentType" type="string" required>
+  MIME type of the file being uploaded.
+  
+  Example: `"audio/wav"`
+  
+  <Note>
+    Common content types include:
+    - `audio/wav`, `audio/mp3`, `audio/flac`
+    - `video/mp4`, `video/mov`, `video/avi`
+    - `application/octet-stream` (for unknown types)
+  </Note>
+</ParamField>
+
+<ParamField body="totalSize" type="integer" required>
+  Total file size in bytes. Must be between 1 byte and 6GB (6,442,450,944 bytes).
+  
+  Example: `2147483648` (2GB)
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional file metadata for reference purposes.
+  
+  <Expandable title="Metadata Properties">
+    <ParamField body="metadata.originalFilename" type="string">
+      Original filename for reference
+    </ParamField>
+    <ParamField body="metadata.description" type="string">
+      Optional file description
+    </ParamField>
+  </Expandable>
+  
+  <Warning>
+    Transcription parameters should be provided in the `/v1/uploads/complete` endpoint, not here.
+  </Warning>
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="uploadId" type="string" required>
+  Unique identifier for this multipart upload. Save this for completing or aborting the upload.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="r2UploadId" type="string" required>
+  R2 internal upload ID used by Cloudflare R2.
+  
+  Example: `"2~Vg5SJ5RRQON9vnefrO2XgB"`
+</ResponseField>
+
+<ResponseField name="r2Key" type="string" required>
+  R2 object key where your file will be stored.
+  
+  <Tip>
+    **Save this key!** You can use it with `/v1/audio/transcriptions` to re-transcribe the same file with different parameters without re-uploading.
+  </Tip>
+  
+  Example: `"uploads/user123/1703123456-audio.wav"`
+</ResponseField>
+
+<ResponseField name="partSize" type="integer" required>
+  Size of each part in bytes. All parts except the last must be exactly this size.
+  
+  Example: `33554432` (32MB)
+</ResponseField>
+
+<ResponseField name="totalParts" type="integer" required>
+  Total number of parts needed to upload the complete file.
+  
+  Example: `64`
+</ResponseField>
+
+<ResponseField name="partUrls" type="array" required>
+  Array of presigned URLs for uploading each part. Upload parts to these URLs in order.
+  
+  <Expandable title="Part URLs">
+    Each URL in the array corresponds to a part number (1-based indexing). Upload your file parts using HTTP PUT requests to these URLs.
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string" required>
+  ISO 8601 timestamp when the upload expires. Complete the upload before this time.
+  
+  Example: `"2024-01-01T12:15:00.000Z"`
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function initiateUpload(file) {
+  const response = await fetch('/v1/uploads/initiate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${uploadToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      filename: file.name,
+      contentType: file.type,
+      totalSize: file.size,
+      metadata: {
+        originalFilename: file.name,
+        description: 'Meeting recording'
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upload initiation failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log(`Upload initiated with ${data.totalParts} parts`);
+  
+  return data;
+}
+```
+
+```python Python
+import requests
+
+def initiate_upload(filename, content_type, total_size, upload_token):
+    url = 'https://api.sonartext.com/v1/uploads/initiate'
+    
+    payload = {
+        'filename': filename,
+        'contentType': content_type,
+        'totalSize': total_size,
+        'metadata': {
+            'originalFilename': filename,
+            'description': 'Audio file for transcription'
+        }
+    }
+    
+    headers = {
+        'Authorization': f'Bearer {upload_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Upload initiated with {data['totalParts']} parts")
+        print(f"Upload expires at: {data['expiresAt']}")
+        return data
+    else:
+        raise Exception(f"Upload initiation failed: {response.text}")
+```
+
+```curl cURL
+curl -X POST 'https://api.sonartext.com/v1/uploads/initiate' \
+  -H 'Authorization: Bearer your_upload_token_here' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "filename": "large-audio-file.wav",
+    "contentType": "audio/wav",
+    "totalSize": 2147483648,
+    "metadata": {
+      "originalFilename": "meeting-recording.wav",
+      "description": "Q1 team meeting recording"
+    }
+  }'
+```
+</CodeGroup>
+
+## Uploading Parts
+
+After initiating the upload, use the returned `partUrls` to upload file parts:
+
+<CodeGroup>
+```javascript JavaScript
+async function uploadPart(partUrl, partData, partNumber) {
+  const response = await fetch(partUrl, {
+    method: 'PUT',
+    body: partData,
+    headers: {
+      'Content-Type': 'application/octet-stream'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to upload part ${partNumber}`);
+  }
+
+  // Extract ETag from response headers
+  const etag = response.headers.get('ETag');
+  return {
+    partNumber: partNumber,
+    etag: etag
+  };
+}
+```
+
+```python Python
+import requests
+
+def upload_part(part_url, part_data, part_number):
+    response = requests.put(
+        part_url,
+        data=part_data,
+        headers={'Content-Type': 'application/octet-stream'}
+    )
+    
+    if response.status_code == 200:
+        etag = response.headers.get('ETag')
+        return {
+            'partNumber': part_number,
+            'etag': etag
+        }
+    else:
+        raise Exception(f"Failed to upload part {part_number}: {response.text}")
+```
+</CodeGroup>
+
+## Next Steps
+
+After uploading all parts:
+
+1. **Collect ETags**: Save the ETag returned from each part upload
+2. **Complete Upload**: Call `/v1/uploads/complete` with the upload ID, parts, and transcription parameters
+3. **Monitor Progress**: Use `/v1/uploads/{uploadId}/status` to check upload progress
+
+<Card title="Complete Upload" icon="check" href="/api-reference/uploads/complete">
+  Learn how to complete your multipart upload and start transcription
+</Card>
+
+## Error Handling
+
+<ResponseExample>
+```json File Too Large
+{
+  "error": "file_too_large",
+  "message": "File size exceeds maximum allowed size",
+  "details": {
+    "providedSize": 7516192768,
+    "maxSize": 6442450944,
+    "maxSizeFormatted": "6GB"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Invalid Content Type
+{
+  "error": "invalid_content_type",
+  "message": "Content type not supported",
+  "details": {
+    "providedType": "application/pdf",
+    "allowedTypes": ["audio/*", "video/*", "application/octet-stream"]
+  }
+}
+```
+</ResponseExample>
+
+<Warning>
+Multipart uploads expire after a certain time period (specified in `expiresAt`). Make sure to complete your upload before the expiration time, or initiate a new upload.
+</Warning>

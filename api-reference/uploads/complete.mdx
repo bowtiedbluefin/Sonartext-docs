@@ -1,0 +1,384 @@
+---
+title: 'Complete Multipart Upload'
+openapi: 'POST /v1/uploads/complete'
+---
+
+Complete the multipart upload and automatically create a transcription job. Provide the ETags returned from each part upload to R2, plus all transcription parameters.
+
+## Request Parameters
+
+### Upload Information
+
+<ParamField body="uploadId" type="string" required>
+  Upload ID returned from the `/v1/uploads/initiate` response.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ParamField>
+
+<ParamField body="parts" type="array" required>
+  Array of completed parts with their ETags from R2 uploads.
+  
+  <Expandable title="Part Object">
+    <ParamField body="parts[].partNumber" type="integer" required>
+      Part number (1-based indexing). Must match the order from initiate response.
+    </ParamField>
+    <ParamField body="parts[].etag" type="string" required>
+      ETag returned by R2 when uploading this part. Include the surrounding quotes.
+      
+      Example: `"\"d41d8cd98f00b204e9800998ecf8427e\""`
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Transcription Parameters
+
+<ParamField body="model" type="string" default="whisper-1">
+  Model to use for transcription. Currently ignored - always uses large-v3.
+  
+  Example: `"whisper-1"`
+</ParamField>
+
+<ParamField body="language" type="string">
+  Language code (ISO 639-1) for the audio. If not specified, language will be auto-detected.
+  
+  Example: `"en"` for English, `"es"` for Spanish, `"fr"` for French
+</ParamField>
+
+<ParamField body="response_format" type="string" default="verbose_json">
+  Output format for the transcription result.
+  
+  Options:
+  - `json`: Basic JSON with text and segments
+  - `verbose_json`: Detailed JSON with timestamps and metadata
+  - `text`: Plain text only
+  - `srt`: SubRip subtitle format
+  - `vtt`: WebVTT subtitle format
+</ParamField>
+
+<ParamField body="timestamp_granularities" type="array" default="[segment]">
+  Level of timestamp detail to include.
+  
+  Options:
+  - `segment`: Timestamps for each segment/sentence
+  - `word`: Timestamps for each individual word
+  
+  Example: `["segment", "word"]` for both levels
+</ParamField>
+
+<ParamField body="enable_diarization" type="boolean" default="false">
+  Enable speaker identification to distinguish between different speakers.
+  
+  <Note>
+    When enabled, each segment will include a speaker ID. Use `min_speakers` and `max_speakers` to guide the diarization process.
+  </Note>
+</ParamField>
+
+<ParamField body="min_speakers" type="integer">
+  Minimum number of speakers expected (1-10). Only used when diarization is enabled.
+  
+  Example: `2`
+</ParamField>
+
+<ParamField body="max_speakers" type="integer">
+  Maximum number of speakers expected (1-10). Only used when diarization is enabled.
+  
+  Example: `5`
+</ParamField>
+
+<ParamField body="output_content" type="string" default="both">
+  What to include in the transcription output.
+  
+  Options:
+  - `both`: Include both text and timestamps
+  - `text_only`: Only include transcribed text
+  - `timestamps_only`: Only include timestamp information
+  - `metadata_only`: Only include metadata (language, duration, etc.)
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the upload was completed successfully.
+  
+  Example: `true`
+</ResponseField>
+
+<ResponseField name="jobId" type="string" required>
+  ID of the created transcription job. Use this to check status and retrieve results.
+  
+  Example: `"clp2x3q4y0002ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="uploadId" type="string" required>
+  The completed upload ID for reference.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="r2Key" type="string" required>
+  R2 object key for the uploaded file. Save this to re-transcribe the file later with different parameters.
+  
+  Example: `"uploads/user123/1703123456-audio.wav"`
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Initial job status. Will be `"queued"` for newly created jobs.
+  
+  Example: `"queued"`
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function completeUpload(uploadId, parts, transcriptionOptions = {}) {
+  const payload = {
+    uploadId,
+    parts,
+    // Transcription parameters
+    response_format: transcriptionOptions.format || 'verbose_json',
+    language: transcriptionOptions.language,
+    enable_diarization: transcriptionOptions.diarization || false,
+    timestamp_granularities: transcriptionOptions.timestamps || ['segment'],
+    output_content: transcriptionOptions.content || 'both',
+    ...transcriptionOptions
+  };
+
+  const response = await fetch('/v1/uploads/complete', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${uploadToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upload completion failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  console.log(`Transcription job created: ${data.jobId}`);
+  
+  return data;
+}
+
+// Example usage
+const result = await completeUpload('clp2x3q4y0001ab2cde3fghij', [
+  { partNumber: 1, etag: '"abc123..."' },
+  { partNumber: 2, etag: '"def456..."' },
+  // ... more parts
+], {
+  format: 'verbose_json',
+  language: 'en',
+  diarization: true,
+  min_speakers: 2,
+  max_speakers: 4,
+  timestamps: ['segment', 'word']
+});
+```
+
+```python Python
+import requests
+
+def complete_upload(upload_id, parts, upload_token, **transcription_options):
+    url = 'https://api.sonartext.com/v1/uploads/complete'
+    
+    payload = {
+        'uploadId': upload_id,
+        'parts': parts,
+        # Transcription parameters
+        'response_format': transcription_options.get('response_format', 'verbose_json'),
+        'language': transcription_options.get('language'),
+        'enable_diarization': transcription_options.get('enable_diarization', False),
+        'timestamp_granularities': transcription_options.get('timestamp_granularities', ['segment']),
+        'output_content': transcription_options.get('output_content', 'both')
+    }
+    
+    # Add optional speaker parameters if diarization is enabled
+    if payload['enable_diarization']:
+        if 'min_speakers' in transcription_options:
+            payload['min_speakers'] = transcription_options['min_speakers']
+        if 'max_speakers' in transcription_options:
+            payload['max_speakers'] = transcription_options['max_speakers']
+    
+    headers = {
+        'Authorization': f'Bearer {upload_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Transcription job created: {data['jobId']}")
+        print(f"R2 key for re-transcription: {data['r2Key']}")
+        return data
+    else:
+        raise Exception(f"Upload completion failed: {response.text}")
+
+# Example usage
+parts = [
+    {'partNumber': 1, 'etag': '"abc123..."'},
+    {'partNumber': 2, 'etag': '"def456..."'}
+]
+
+result = complete_upload(
+    upload_id='clp2x3q4y0001ab2cde3fghij',
+    parts=parts,
+    upload_token='your_token_here',
+    response_format='verbose_json',
+    language='en',
+    enable_diarization=True,
+    min_speakers=2,
+    max_speakers=4,
+    timestamp_granularities=['segment', 'word']
+)
+```
+
+```curl cURL
+curl -X POST 'https://api.sonartext.com/v1/uploads/complete' \
+  -H 'Authorization: Bearer your_upload_token_here' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "uploadId": "clp2x3q4y0001ab2cde3fghij",
+    "parts": [
+      {
+        "partNumber": 1,
+        "etag": "\"d41d8cd98f00b204e9800998ecf8427e\""
+      },
+      {
+        "partNumber": 2,
+        "etag": "\"098f6bcd4621d373cade4e832627b4f6\""
+      }
+    ],
+    "response_format": "verbose_json",
+    "language": "en",
+    "enable_diarization": true,
+    "min_speakers": 2,
+    "max_speakers": 4,
+    "timestamp_granularities": ["segment", "word"],
+    "output_content": "both"
+  }'
+```
+</CodeGroup>
+
+## Complete Workflow Example
+
+Here's a complete example of the multipart upload workflow:
+
+<Steps>
+<Step title="Initiate Upload">
+  Start the multipart upload and get presigned URLs.
+  
+  ```javascript
+  const initResponse = await initiateUpload(file);
+  const { uploadId, partUrls, partSize } = initResponse;
+  ```
+</Step>
+
+<Step title="Upload Parts">
+  Upload each file part and collect ETags.
+  
+  ```javascript
+  const parts = [];
+  
+  for (let i = 0; i < partUrls.length; i++) {
+    const start = i * partSize;
+    const end = Math.min(start + partSize, file.size);
+    const partData = file.slice(start, end);
+    
+    const partResult = await uploadPart(partUrls[i], partData, i + 1);
+    parts.push(partResult);
+  }
+  ```
+</Step>
+
+<Step title="Complete Upload">
+  Finish the upload and start transcription.
+  
+  ```javascript
+  const result = await completeUpload(uploadId, parts, {
+    format: 'verbose_json',
+    language: 'en',
+    diarization: true
+  });
+  
+  // Job is now queued for processing
+  console.log(`Job ID: ${result.jobId}`);
+  ```
+</Step>
+
+<Step title="Monitor Job">
+  Check the job status and retrieve results when complete.
+  
+  ```javascript
+  // Check job status
+  const jobStatus = await fetch(`/jobs/${result.jobId}`);
+  
+  // Get results when complete
+  if (jobStatus.status === 'completed') {
+    const transcription = await fetch(`/jobs/${result.jobId}/result`);
+  }
+  ```
+</Step>
+</Steps>
+
+## Re-transcription
+
+<Tip>
+Save the `r2Key` from the response to re-transcribe the same file later with different parameters without re-uploading!
+</Tip>
+
+You can use the `r2Key` with the `/v1/audio/transcriptions` endpoint:
+
+```javascript
+// Re-transcribe with different settings
+const reTranscription = await fetch('/v1/audio/transcriptions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    r2_bucket: 'sonartext-uploads',
+    r2_key: 'uploads/user123/1703123456-audio.wav', // From complete response
+    response_format: 'srt', // Different format
+    enable_diarization: false // Different settings
+  })
+});
+```
+
+## Error Responses
+
+<ResponseExample>
+```json Invalid Upload State
+{
+  "error": "invalid_upload_state",
+  "message": "Upload is not in a state that can be completed",
+  "details": {
+    "uploadId": "clp2x3q4y0001ab2cde3fghij",
+    "currentState": "aborted",
+    "requiredState": "uploading"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Missing Parts
+{
+  "error": "incomplete_parts",
+  "message": "Not all required parts have been uploaded",
+  "details": {
+    "expectedParts": 64,
+    "providedParts": 63,
+    "missingParts": [32]
+  }
+}
+```
+</ResponseExample>
+
+<Warning>
+Make sure all parts have been successfully uploaded to R2 before calling the complete endpoint. The API will validate that all expected parts are present.
+</Warning>

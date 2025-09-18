@@ -1,0 +1,590 @@
+---
+title: 'Get Job Result'
+openapi: 'GET /jobs/{jobId}/result'
+---
+
+Retrieve the transcription results for a completed job. Returns the full transcription data in the format specified when the job was created.
+
+## Path Parameters
+
+<ParamField path="jobId" type="string" required>
+  Unique identifier for the completed job.
+  
+  **Example**: `"clp2x3q4y0002ab2cde3fghij"`
+</ParamField>
+
+## Response Format
+
+The response format depends on the `response_format` parameter specified when creating the transcription job:
+
+### JSON Responses (json, verbose_json)
+
+<ResponseField name="text" type="string" required>
+  Complete transcription text.
+</ResponseField>
+
+<ResponseField name="segments" type="array">
+  Array of transcription segments with timestamps (for verbose_json).
+  
+  <Expandable title="Segment Object">
+    <ResponseField name="id" type="integer">
+      Segment identifier.
+    </ResponseField>
+    <ResponseField name="start" type="number">
+      Start time in seconds.
+    </ResponseField>
+    <ResponseField name="end" type="number">
+      End time in seconds.
+    </ResponseField>
+    <ResponseField name="text" type="string">
+      Segment text content.
+    </ResponseField>
+    <ResponseField name="speaker" type="string">
+      Speaker ID (if diarization was enabled).
+    </ResponseField>
+    <ResponseField name="confidence" type="number">
+      Confidence score (0.0 to 1.0).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="words" type="array">
+  Word-level timestamps (if word granularity was requested).
+  
+  <Expandable title="Word Object">
+    <ResponseField name="word" type="string">
+      Individual word.
+    </ResponseField>
+    <ResponseField name="start" type="number">
+      Word start time in seconds.
+    </ResponseField>
+    <ResponseField name="end" type="number">
+      Word end time in seconds.
+    </ResponseField>
+    <ResponseField name="confidence" type="number">
+      Word confidence score.
+    </ResponseField>
+    <ResponseField name="speaker" type="string">
+      Speaker ID (if diarization was enabled).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="language" type="string">
+  Detected or specified language code.
+</ResponseField>
+
+<ResponseField name="duration" type="number">
+  Total audio duration in seconds.
+</ResponseField>
+
+<ResponseField name="speakers" type="array">
+  Speaker information (if diarization was enabled).
+  
+  <Expandable title="Speaker Object">
+    <ResponseField name="id" type="string">
+      Speaker identifier.
+    </ResponseField>
+    <ResponseField name="label" type="string">
+      Speaker label (e.g., "Speaker 1").
+    </ResponseField>
+    <ResponseField name="segments" type="array">
+      Array of segment IDs for this speaker.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Text Response (text)
+
+Returns plain text transcription content with `Content-Type: text/plain`.
+
+### Subtitle Responses (srt, vtt)
+
+Returns subtitle file content with appropriate MIME types:
+- **SRT**: `Content-Type: application/x-subrip`
+- **VTT**: `Content-Type: text/vtt`
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function getJobResult(jobId) {
+  const response = await fetch(`/jobs/${jobId}/result`, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Job not found or results not available');
+    }
+    throw new Error(`Failed to get job result: ${response.statusText}`);
+  }
+
+  // Handle different response formats
+  const contentType = response.headers.get('content-type');
+  
+  if (contentType.includes('application/json')) {
+    return response.json();
+  } else {
+    return response.text();
+  }
+}
+
+// Download results for a completed job
+const jobResult = await getJobResult('clp2x3q4y0002ab2cde3fghij');
+
+if (typeof jobResult === 'object') {
+  // JSON response
+  console.log(`Transcription: ${jobResult.text}`);
+  console.log(`Duration: ${jobResult.duration}s`);
+  console.log(`Language: ${jobResult.language}`);
+  
+  if (jobResult.segments) {
+    console.log(`Segments: ${jobResult.segments.length}`);
+  }
+  
+  if (jobResult.speakers) {
+    console.log(`Speakers: ${jobResult.speakers.length}`);
+  }
+} else {
+  // Text or subtitle response
+  console.log('Result:', jobResult);
+}
+```
+
+```python Python
+import requests
+
+def get_job_result(job_id, api_key, save_to_file=None):
+    url = f'https://api.sonartext.com/jobs/{job_id}/result'
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        content_type = response.headers.get('content-type', '')
+        
+        if 'application/json' in content_type:
+            result = response.json()
+            
+            if save_to_file:
+                # Save JSON result
+                import json
+                with open(save_to_file, 'w', encoding='utf-8') as f:
+                    json.dump(result, f, indent=2, ensure_ascii=False)
+            
+            return result
+        else:
+            # Text, SRT, or VTT response
+            result = response.text
+            
+            if save_to_file:
+                with open(save_to_file, 'w', encoding='utf-8') as f:
+                    f.write(result)
+            
+            return result
+    
+    elif response.status_code == 404:
+        raise Exception('Job not found or results not available')
+    else:
+        raise Exception(f"Failed to get job result: {response.text}")
+
+# Get JSON result
+transcription = get_job_result(
+    'clp2x3q4y0002ab2cde3fghij', 
+    'stx_live_your_api_key',
+    save_to_file='transcription.json'
+)
+
+if isinstance(transcription, dict):
+    print(f"Text: {transcription['text'][:100]}...")
+    print(f"Duration: {transcription['duration']} seconds")
+    
+    if 'segments' in transcription:
+        print(f"Segments: {len(transcription['segments'])}")
+        
+        # Show first few segments
+        for i, segment in enumerate(transcription['segments'][:3]):
+            start_min = int(segment['start'] // 60)
+            start_sec = int(segment['start'] % 60)
+            print(f"  {i+1}. [{start_min:02d}:{start_sec:02d}] {segment['text']}")
+    
+    if 'speakers' in transcription:
+        print(f"\nSpeakers detected: {len(transcription['speakers'])}")
+        for speaker in transcription['speakers']:
+            seg_count = len(speaker['segments'])
+            print(f"  {speaker['label']}: {seg_count} segments")
+
+else:
+    # Text or subtitle format
+    print(f"Result (first 200 chars): {transcription[:200]}...")
+```
+
+```curl cURL
+# Get JSON result
+curl -X GET 'https://api.sonartext.com/jobs/clp2x3q4y0002ab2cde3fghij/result' \
+  -H 'Authorization: Bearer stx_live_your_api_key' \
+  -H 'Accept: application/json'
+
+# Save result to file
+curl -X GET 'https://api.sonartext.com/jobs/clp2x3q4y0002ab2cde3fghij/result' \
+  -H 'Authorization: Bearer stx_live_your_api_key' \
+  -o transcription_result.json
+```
+</CodeGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Verbose JSON (with Diarization)
+{
+  "text": "Welcome everyone to today's quarterly review meeting. Thank you for joining us. Let's start by looking at our key performance indicators.",
+  "segments": [
+    {
+      "id": 0,
+      "start": 0.5,
+      "end": 4.2,
+      "text": "Welcome everyone to today's quarterly review meeting.",
+      "speaker": "Speaker_1",
+      "confidence": 0.94
+    },
+    {
+      "id": 1,
+      "start": 4.5,
+      "end": 6.8,
+      "text": "Thank you for joining us.",
+      "speaker": "Speaker_1",
+      "confidence": 0.91
+    },
+    {
+      "id": 2,
+      "start": 7.2,
+      "end": 11.5,
+      "text": "Let's start by looking at our key performance indicators.",
+      "speaker": "Speaker_1",
+      "confidence": 0.89
+    }
+  ],
+  "words": [
+    {
+      "word": "Welcome",
+      "start": 0.5,
+      "end": 1.0,
+      "confidence": 0.98,
+      "speaker": "Speaker_1"
+    },
+    {
+      "word": "everyone",
+      "start": 1.0,
+      "end": 1.4,
+      "confidence": 0.96,
+      "speaker": "Speaker_1"
+    }
+    // ... more words
+  ],
+  "language": "en",
+  "duration": 11.5,
+  "speakers": [
+    {
+      "id": "Speaker_1",
+      "label": "Speaker 1",
+      "segments": [0, 1, 2]
+    }
+  ]
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Basic JSON
+{
+  "text": "Welcome everyone to today's quarterly review meeting. Thank you for joining us. Let's start by looking at our key performance indicators.",
+  "language": "en",
+  "duration": 11.5
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```srt SRT Format
+1
+00:00:00,500 --> 00:00:04,200
+<v Speaker_1>Welcome everyone to today's quarterly review meeting.
+
+2
+00:00:04,500 --> 00:00:06,800
+<v Speaker_1>Thank you for joining us.
+
+3
+00:00:07,200 --> 00:00:11,500
+<v Speaker_1>Let's start by looking at our key performance indicators.
+```
+</ResponseExample>
+
+<ResponseExample>
+```vtt WebVTT Format
+WEBVTT
+
+NOTE
+Generated by Sonartext API
+
+00:00:00.500 --> 00:00:04.200
+<v Speaker_1>Welcome everyone to today's quarterly review meeting.
+
+00:00:04.500 --> 00:00:06.800
+<v Speaker_1>Thank you for joining us.
+
+00:00:07.200 --> 00:00:11.500
+<v Speaker_1>Let's start by looking at our key performance indicators.
+```
+</ResponseExample>
+
+## Working with Results
+
+<CodeGroup>
+```javascript Processing JSON Results
+async function analyzeTranscription(jobId) {
+  const result = await getJobResult(jobId);
+  
+  if (typeof result !== 'object') {
+    throw new Error('Expected JSON result for analysis');
+  }
+  
+  const analysis = {
+    totalDuration: result.duration,
+    totalWords: result.text.split(' ').length,
+    segmentCount: result.segments?.length || 0,
+    speakerCount: result.speakers?.length || 0,
+    avgSegmentLength: 0,
+    avgConfidence: 0
+  };
+  
+  if (result.segments && result.segments.length > 0) {
+    // Calculate average segment length
+    const totalSegmentTime = result.segments.reduce((sum, seg) => 
+      sum + (seg.end - seg.start), 0
+    );
+    analysis.avgSegmentLength = totalSegmentTime / result.segments.length;
+    
+    // Calculate average confidence
+    const totalConfidence = result.segments.reduce((sum, seg) => 
+      sum + seg.confidence, 0
+    );
+    analysis.avgConfidence = totalConfidence / result.segments.length;
+  }
+  
+  return analysis;
+}
+
+// Generate a summary
+const analysis = await analyzeTranscription('clp2x3q4y0002ab2cde3fghij');
+console.log(`
+Analysis Summary:
+- Duration: ${Math.floor(analysis.totalDuration / 60)}:${Math.floor(analysis.totalDuration % 60).toString().padStart(2, '0')}
+- Words: ${analysis.totalWords}
+- Segments: ${analysis.segmentCount}  
+- Speakers: ${analysis.speakerCount}
+- Avg Confidence: ${(analysis.avgConfidence * 100).toFixed(1)}%
+- Avg Segment Length: ${analysis.avgSegmentLength.toFixed(1)}s
+`);
+```
+
+```python Creating Searchable Transcripts
+import json
+import re
+
+def create_searchable_transcript(job_id, api_key):
+    """Create a searchable transcript with timestamps."""
+    
+    result = get_job_result(job_id, api_key)
+    
+    if not isinstance(result, dict) or 'segments' not in result:
+        raise Exception('Need JSON format with segments for searchable transcript')
+    
+    searchable_entries = []
+    
+    for segment in result['segments']:
+        # Format timestamp
+        start_min = int(segment['start'] // 60)
+        start_sec = int(segment['start'] % 60)
+        timestamp = f"{start_min:02d}:{start_sec:02d}"
+        
+        # Clean text for searching
+        clean_text = segment['text'].lower().strip()
+        
+        entry = {
+            'timestamp': timestamp,
+            'start_seconds': segment['start'],
+            'text': segment['text'],
+            'clean_text': clean_text,
+            'speaker': segment.get('speaker', 'Unknown'),
+            'confidence': segment.get('confidence', 0)
+        }
+        
+        searchable_entries.append(entry)
+    
+    return {
+        'job_id': job_id,
+        'duration': result['duration'],
+        'language': result['language'],
+        'total_segments': len(searchable_entries),
+        'entries': searchable_entries
+    }
+
+def search_transcript(transcript, query, min_confidence=0.5):
+    """Search through transcript entries."""
+    
+    query_lower = query.lower()
+    matches = []
+    
+    for entry in transcript['entries']:
+        if (entry['confidence'] >= min_confidence and 
+            query_lower in entry['clean_text']):
+            
+            # Highlight the match
+            highlighted_text = re.sub(
+                f'({re.escape(query)})',
+                r'**\1**',
+                entry['text'],
+                flags=re.IGNORECASE
+            )
+            
+            matches.append({
+                'timestamp': entry['timestamp'],
+                'speaker': entry['speaker'],
+                'text': highlighted_text,
+                'confidence': entry['confidence']
+            })
+    
+    return matches
+
+# Usage
+transcript = create_searchable_transcript('clp2x3q4y0002ab2cde3fghij', 'stx_live_your_api_key')
+
+# Search for specific terms
+matches = search_transcript(transcript, 'quarterly review')
+print(f"Found {len(matches)} matches for 'quarterly review':")
+
+for match in matches[:5]:  # Show first 5 matches
+    print(f"[{match['timestamp']}] {match['speaker']}: {match['text']}")
+```
+</CodeGroup>
+
+## Format-Specific Use Cases
+
+<AccordionGroup>
+<Accordion title="📄 JSON - Application Integration">
+  Perfect for applications that need to process transcription data programmatically:
+  - Build interactive transcript viewers
+  - Implement search functionality  
+  - Create analytics dashboards
+  - Generate custom reports
+</Accordion>
+
+<Accordion title="📝 Text - Simple Storage">
+  Plain text format for basic use cases:
+  - Documentation and note-taking
+  - Content management systems
+  - Simple archival storage
+  - Email summaries
+</Accordion>
+
+<Accordion title="🎬 SRT - Video Subtitles">
+  SubRip format for video applications:
+  - Video editing software
+  - Media players
+  - YouTube uploads
+  - Educational content
+</Accordion>
+
+<Accordion title="🌐 VTT - Web Video">
+  WebVTT format for web-based video:
+  - HTML5 video players
+  - Online learning platforms
+  - Streaming services
+  - Accessibility compliance
+</Accordion>
+</AccordionGroup>
+
+## Error Responses
+
+<ResponseExample>
+```json Job Not Found
+{
+  "error": "job_not_found",
+  "message": "Job with the specified ID was not found",
+  "details": {
+    "jobId": "invalid_job_id"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Results Not Available
+{
+  "error": "results_not_available",
+  "message": "Results are not available for this job",
+  "details": {
+    "jobId": "clp2x3q4y0002ab2cde3fghij",
+    "status": "processing",
+    "message": "Job is still being processed"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Failed Job
+{
+  "error": "job_failed",
+  "message": "Cannot retrieve results for failed job",
+  "details": {
+    "jobId": "clp2x3q4y0002ab2cde3fghij",
+    "status": "failed",
+    "error": "Unable to decode audio file"
+  }
+}
+```
+</ResponseExample>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="✅ Check Job Status First">
+  Always verify the job is completed before requesting results to avoid unnecessary API calls.
+</Accordion>
+
+<Accordion title="💾 Cache Results Locally">
+  Store frequently accessed results locally to reduce API calls and improve performance.
+</Accordion>
+
+<Accordion title="🔄 Handle Different Formats">
+  Write robust code that can handle both JSON and text responses based on the original request format.
+</Accordion>
+
+<Accordion title="⚠️ Error Handling">
+  Implement proper error handling for jobs that are not ready, failed, or don't exist.
+</Accordion>
+
+<Accordion title="📊 Process Large Results">
+  For long transcriptions, consider streaming or paginating the processing of large result sets.
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+Results are available for completed jobs only. Jobs that failed, were cancelled, or are still processing will return appropriate error responses.
+</Warning>
+
+<Card title="Job Details" icon="magnifying-glass" href="/api-reference/jobs/get">
+  Check if a job is completed before getting results
+</Card>
+
+<Card title="Usage Statistics" icon="chart-bar" href="/api-reference/jobs/stats">
+  View your transcription usage and statistics
+</Card>

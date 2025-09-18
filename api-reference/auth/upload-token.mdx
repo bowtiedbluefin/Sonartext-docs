@@ -1,0 +1,176 @@
+---
+title: 'Generate Upload Token'
+openapi: 'POST /auth/upload-token'
+---
+
+Generate a short-lived token for browser uploads. This endpoint supports both Firebase authentication (for browser clients) and API key authentication (for direct API access).
+
+## Authentication Methods
+
+<Tabs>
+<Tab title="API Key">
+Use your Sonartext API key for easy testing and server-to-server communication:
+
+```bash
+curl -X POST 'https://api.sonartext.com/auth/upload-token' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here'
+```
+</Tab>
+
+<Tab title="Firebase Token">
+For browser clients using Firebase authentication:
+
+```bash
+curl -X POST 'https://api.sonartext.com/auth/upload-token' \
+  -H 'Authorization: Bearer firebase_id_token_here'
+```
+</Tab>
+</Tabs>
+
+## Response Fields
+
+<ResponseField name="uploadToken" type="string" required>
+  JWT token for upload authorization. Use this token for subsequent upload operations.
+</ResponseField>
+
+<ResponseField name="maxFileSize" type="integer" required>
+  Maximum file size in bytes that can be uploaded with this token.
+</ResponseField>
+
+<ResponseField name="allowedTypes" type="array" required>
+  Array of allowed MIME types for uploads.
+  <Expandable title="Allowed Types">
+    Common allowed types include:
+    - `audio/*` (all audio formats)
+    - `video/*` (all video formats)
+    - `application/octet-stream`
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="expiresAt" type="integer" required>
+  Token expiration timestamp (Unix timestamp in seconds).
+</ResponseField>
+
+## Example Response
+
+<ResponseExample>
+```json Success
+{
+  "uploadToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyXzEyMyIsImV4cCI6MTcwNTQxODQwMCwiaWF0IjoxNzA1NDE0ODAwfQ.example-signature",
+  "maxFileSize": 6442450944,
+  "allowedTypes": [
+    "audio/*",
+    "video/*",
+    "application/octet-stream"
+  ],
+  "expiresAt": 1705418400
+}
+```
+</ResponseExample>
+
+## Usage Examples
+
+### JavaScript/Browser
+
+```javascript
+async function getUploadToken() {
+  const response = await fetch('/auth/upload-token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${firebaseIdToken}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to get upload token');
+  }
+  
+  const data = await response.json();
+  console.log('Token expires at:', new Date(data.expiresAt * 1000));
+  
+  return data.uploadToken;
+}
+```
+
+### Python
+
+```python
+import requests
+import time
+
+def get_upload_token(api_key):
+    response = requests.post(
+        'https://api.sonartext.com/auth/upload-token',
+        headers={
+            'Authorization': f'Bearer {api_key}'
+        }
+    )
+    
+    if response.status_code == 200:
+        data = response.json()
+        expires_at = time.ctime(data['expiresAt'])
+        print(f"Token expires at: {expires_at}")
+        return data['uploadToken']
+    else:
+        raise Exception(f"Failed to get upload token: {response.text}")
+```
+
+### Node.js
+
+```javascript
+const axios = require('axios');
+
+async function getUploadToken(apiKey) {
+  try {
+    const response = await axios.post(
+      'https://api.sonartext.com/auth/upload-token',
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      }
+    );
+    
+    const { uploadToken, expiresAt, maxFileSize } = response.data;
+    
+    console.log(`Token expires at: ${new Date(expiresAt * 1000)}`);
+    console.log(`Max file size: ${(maxFileSize / 1024 / 1024 / 1024).toFixed(2)} GB`);
+    
+    return uploadToken;
+  } catch (error) {
+    console.error('Failed to get upload token:', error.response?.data || error.message);
+    throw error;
+  }
+}
+```
+
+## Token Usage
+
+Once you have an upload token, you can use it to:
+
+1. **Initiate multipart uploads** with `/v1/uploads/initiate`
+2. **Upload file parts** directly to R2 using the presigned URLs
+3. **Complete uploads** with `/v1/uploads/complete`
+
+<Warning>
+Upload tokens have a limited lifetime (typically 1 hour). Make sure to check the `expiresAt` field and refresh tokens as needed for long-running upload processes.
+</Warning>
+
+<Note>
+This endpoint is primarily designed for browser-based applications that need to perform uploads directly to R2 storage. Server-to-server integrations can often use API keys directly with other endpoints.
+</Note>
+
+## Error Responses
+
+<ResponseExample>
+```json Invalid Firebase Token
+{
+  "error": "invalid_token",
+  "message": "Invalid Firebase ID token provided",
+  "details": {
+    "code": "auth/invalid-token"
+  }
+}
+```
+</ResponseExample>

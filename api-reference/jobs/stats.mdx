@@ -1,0 +1,598 @@
+---
+title: 'Usage Statistics'
+openapi: 'GET /jobs/stats/summary'
+---
+
+Get comprehensive usage statistics for your transcription and text-to-speech jobs, including success rates, processing times, and usage patterns.
+
+## Response Fields
+
+<ResponseField name="total" type="object" required>
+  Lifetime statistics across all your jobs.
+  
+  <Expandable title="Total Statistics">
+    <ResponseField name="jobs" type="integer">
+      Total number of jobs created.
+    </ResponseField>
+    <ResponseField name="completed" type="integer">
+      Number of successfully completed jobs.
+    </ResponseField>
+    <ResponseField name="failed" type="integer">
+      Number of failed jobs.
+    </ResponseField>
+    <ResponseField name="processing" type="integer">
+      Number of jobs currently processing.
+    </ResponseField>
+    <ResponseField name="totalSeconds" type="number">
+      Total seconds of audio processed across all completed jobs.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="last30Days" type="object" required>
+  Statistics for the last 30 days.
+  
+  <Expandable title="Recent Statistics">
+    <ResponseField name="jobs" type="integer">
+      Number of jobs created in the last 30 days.
+    </ResponseField>
+    <ResponseField name="seconds" type="number">
+      Seconds of audio processed in the last 30 days.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="successRate" type="string" required>
+  Overall success rate as a percentage.
+  
+  **Example**: `"94.2%"`
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function getUsageStats() {
+  const response = await fetch('/jobs/stats/summary', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get usage stats: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Display comprehensive usage statistics
+const stats = await getUsageStats();
+
+console.log('📊 Usage Statistics Dashboard');
+console.log('================================');
+
+// Overall stats
+console.log('\n🎯 Overall Performance:');
+console.log(`Success Rate: ${stats.successRate}`);
+console.log(`Total Jobs: ${stats.total.jobs}`);
+console.log(`Completed: ${stats.total.completed}`);
+console.log(`Failed: ${stats.total.failed}`);
+console.log(`Currently Processing: ${stats.total.processing}`);
+
+// Audio processing
+const totalHours = (stats.total.totalSeconds / 3600).toFixed(1);
+const recentHours = (stats.last30Days.seconds / 3600).toFixed(1);
+
+console.log('\n🎵 Audio Processing:');
+console.log(`Total Audio Processed: ${totalHours} hours`);
+console.log(`Last 30 Days: ${recentHours} hours`);
+
+// Recent activity
+console.log('\n📅 Recent Activity (30 days):');
+console.log(`Jobs Created: ${stats.last30Days.jobs}`);
+
+if (stats.last30Days.jobs > 0) {
+  const avgJobsPerDay = (stats.last30Days.jobs / 30).toFixed(1);
+  const avgAudioPerJob = stats.last30Days.seconds / stats.last30Days.jobs / 60;
+  
+  console.log(`Average per day: ${avgJobsPerDay} jobs`);
+  console.log(`Average audio per job: ${avgAudioPerJob.toFixed(1)} minutes`);
+}
+```
+
+```python Python
+import requests
+from datetime import datetime, timedelta
+
+def get_usage_stats(api_key):
+    url = 'https://api.sonartext.com/jobs/stats/summary'
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to get usage stats: {response.text}")
+
+def format_duration(seconds):
+    """Format seconds into human-readable duration."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    remaining_seconds = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours}h {minutes}m {remaining_seconds}s"
+    elif minutes > 0:
+        return f"{minutes}m {remaining_seconds}s"
+    else:
+        return f"{remaining_seconds}s"
+
+def print_detailed_stats(api_key):
+    """Print comprehensive usage statistics."""
+    
+    stats = get_usage_stats(api_key)
+    
+    print("📊 SONARTEXT USAGE STATISTICS")
+    print("=" * 40)
+    
+    # Success metrics
+    total_jobs = stats['total']['jobs']
+    completed_jobs = stats['total']['completed']
+    failed_jobs = stats['total']['failed']
+    
+    print(f"\n🎯 SUCCESS METRICS:")
+    print(f"   Success Rate: {stats['successRate']}")
+    print(f"   Total Jobs: {total_jobs:,}")
+    print(f"   ✅ Completed: {completed_jobs:,}")
+    print(f"   ❌ Failed: {failed_jobs:,}")
+    print(f"   🔄 Processing: {stats['total']['processing']:,}")
+    
+    # Audio processing stats
+    total_seconds = stats['total']['totalSeconds']
+    total_hours = total_seconds / 3600
+    
+    print(f"\n🎵 AUDIO PROCESSING:")
+    print(f"   Total Audio: {format_duration(total_seconds)} ({total_hours:.1f} hours)")
+    
+    if completed_jobs > 0:
+        avg_duration = total_seconds / completed_jobs
+        print(f"   Average per job: {format_duration(avg_duration)}")
+    
+    # Recent activity
+    recent_jobs = stats['last30Days']['jobs']
+    recent_seconds = stats['last30Days']['seconds']
+    
+    print(f"\n📅 LAST 30 DAYS:")
+    print(f"   Jobs Created: {recent_jobs:,}")
+    print(f"   Audio Processed: {format_duration(recent_seconds)}")
+    
+    if recent_jobs > 0:
+        jobs_per_day = recent_jobs / 30
+        avg_job_duration = recent_seconds / recent_jobs if recent_jobs > 0 else 0
+        
+        print(f"   Daily Average: {jobs_per_day:.1f} jobs/day")
+        print(f"   Avg Job Duration: {format_duration(avg_job_duration)}")
+    
+    # Efficiency metrics
+    if total_jobs > 0:
+        efficiency = (completed_jobs / total_jobs) * 100
+        print(f"\n📈 EFFICIENCY:")
+        print(f"   Job Completion Rate: {efficiency:.1f}%")
+        
+        if failed_jobs > 0:
+            failure_rate = (failed_jobs / total_jobs) * 100
+            print(f"   Failure Rate: {failure_rate:.1f}%")
+    
+    return stats
+
+# Usage
+stats = print_detailed_stats('stx_live_your_api_key')
+```
+
+```curl cURL
+curl -X GET 'https://api.sonartext.com/jobs/stats/summary' \
+  -H 'Authorization: Bearer stx_live_your_api_key'
+```
+</CodeGroup>
+
+## Response Example
+
+<ResponseExample>
+```json Usage Statistics
+{
+  "total": {
+    "jobs": 1247,
+    "completed": 1186,
+    "failed": 38,
+    "processing": 23,
+    "totalSeconds": 145267.8
+  },
+  "last30Days": {
+    "jobs": 156,
+    "seconds": 18495.3
+  },
+  "successRate": "95.1%"
+}
+```
+</ResponseExample>
+
+## Analytics & Insights
+
+<CodeGroup>
+```javascript Usage Analytics Dashboard
+async function createAnalyticsDashboard() {
+  const stats = await getUsageStats();
+  
+  // Calculate key metrics
+  const metrics = {
+    // Efficiency metrics
+    completionRate: (stats.total.completed / stats.total.jobs * 100).toFixed(1),
+    failureRate: (stats.total.failed / stats.total.jobs * 100).toFixed(1),
+    
+    // Volume metrics
+    totalHours: (stats.total.totalSeconds / 3600).toFixed(1),
+    recentHours: (stats.last30Days.seconds / 3600).toFixed(1),
+    
+    // Activity metrics
+    dailyAverage: (stats.last30Days.jobs / 30).toFixed(1),
+    avgJobDuration: stats.last30Days.jobs > 0 ? 
+      (stats.last30Days.seconds / stats.last30Days.jobs / 60).toFixed(1) : 0,
+    
+    // Growth indicators
+    recentActivity: stats.last30Days.jobs,
+    totalActivity: stats.total.jobs,
+    activityPercent: stats.total.jobs > 0 ? 
+      (stats.last30Days.jobs / stats.total.jobs * 100).toFixed(1) : 0
+  };
+  
+  // Create dashboard display
+  const dashboard = {
+    summary: {
+      successRate: stats.successRate,
+      totalJobs: stats.total.jobs,
+      processingQueue: stats.total.processing
+    },
+    
+    volume: {
+      totalAudioHours: parseFloat(metrics.totalHours),
+      last30DaysHours: parseFloat(metrics.recentHours),
+      averageJobMinutes: parseFloat(metrics.avgJobDuration)
+    },
+    
+    activity: {
+      dailyAverageJobs: parseFloat(metrics.dailyAverage),
+      last30DaysPercent: parseFloat(metrics.activityPercent),
+      currentProcessing: stats.total.processing
+    },
+    
+    health: {
+      completionRate: parseFloat(metrics.completionRate),
+      failureRate: parseFloat(metrics.failureRate),
+      queueDepth: stats.total.processing
+    }
+  };
+  
+  return dashboard;
+}
+
+// Generate usage report
+const dashboard = await createAnalyticsDashboard();
+
+console.log('📊 Analytics Dashboard Generated:');
+console.log(JSON.stringify(dashboard, null, 2));
+```
+
+```python Monthly Usage Report
+import requests
+from datetime import datetime, timedelta
+import json
+
+def generate_monthly_report(api_key, save_to_file=False):
+    """Generate a comprehensive monthly usage report."""
+    
+    stats = get_usage_stats(api_key)
+    current_date = datetime.now()
+    
+    # Calculate derived metrics
+    total_jobs = stats['total']['jobs']
+    completed_jobs = stats['total']['completed']
+    failed_jobs = stats['total']['failed']
+    
+    # Efficiency calculations
+    success_rate = (completed_jobs / total_jobs * 100) if total_jobs > 0 else 0
+    failure_rate = (failed_jobs / total_jobs * 100) if total_jobs > 0 else 0
+    
+    # Volume calculations
+    total_hours = stats['total']['totalSeconds'] / 3600
+    recent_hours = stats['last30Days']['seconds'] / 3600
+    
+    # Cost estimation (example rates - adjust based on your pricing)
+    estimated_cost_per_hour = 5.0  # $5 per hour of audio
+    total_estimated_cost = total_hours * estimated_cost_per_hour
+    recent_estimated_cost = recent_hours * estimated_cost_per_hour
+    
+    report = {
+        'report_generated': current_date.strftime('%Y-%m-%d %H:%M:%S UTC'),
+        'period': 'Last 30 Days',
+        
+        'summary': {
+            'total_jobs_created': stats['last30Days']['jobs'],
+            'audio_hours_processed': round(recent_hours, 2),
+            'estimated_cost': f"${recent_estimated_cost:.2f}",
+            'success_rate': f"{success_rate:.1f}%"
+        },
+        
+        'lifetime_totals': {
+            'total_jobs': total_jobs,
+            'completed_jobs': completed_jobs,
+            'failed_jobs': failed_jobs,
+            'total_audio_hours': round(total_hours, 2),
+            'estimated_total_cost': f"${total_estimated_cost:.2f}"
+        },
+        
+        'efficiency_metrics': {
+            'overall_success_rate': f"{success_rate:.1f}%",
+            'failure_rate': f"{failure_rate:.1f}%",
+            'completion_ratio': f"{completed_jobs}/{total_jobs}",
+            'current_queue_depth': stats['total']['processing']
+        },
+        
+        'usage_patterns': {
+            'average_jobs_per_day': round(stats['last30Days']['jobs'] / 30, 1),
+            'average_audio_per_job_minutes': round(
+                (stats['last30Days']['seconds'] / stats['last30Days']['jobs'] / 60) 
+                if stats['last30Days']['jobs'] > 0 else 0, 1
+            ),
+            'recent_activity_percent': round(
+                (stats['last30Days']['jobs'] / total_jobs * 100) 
+                if total_jobs > 0 else 0, 1
+            )
+        }
+    }
+    
+    if save_to_file:
+        filename = f"sonartext_usage_report_{current_date.strftime('%Y%m%d')}.json"
+        with open(filename, 'w') as f:
+            json.dump(report, f, indent=2)
+        print(f"Report saved to {filename}")
+    
+    return report
+
+def print_usage_report(api_key):
+    """Print a formatted usage report."""
+    
+    report = generate_monthly_report(api_key)
+    
+    print("📊 SONARTEXT MONTHLY USAGE REPORT")
+    print("=" * 50)
+    print(f"Generated: {report['report_generated']}")
+    print(f"Period: {report['period']}")
+    
+    print(f"\n📈 SUMMARY:")
+    print(f"   Jobs Created: {report['summary']['total_jobs_created']:,}")
+    print(f"   Audio Processed: {report['summary']['audio_hours_processed']} hours")
+    print(f"   Success Rate: {report['summary']['success_rate']}")
+    print(f"   Estimated Cost: {report['summary']['estimated_cost']}")
+    
+    print(f"\n📊 EFFICIENCY:")
+    print(f"   Overall Success: {report['efficiency_metrics']['overall_success_rate']}")
+    print(f"   Failure Rate: {report['efficiency_metrics']['failure_rate']}")
+    print(f"   Queue Depth: {report['efficiency_metrics']['current_queue_depth']}")
+    
+    print(f"\n🎯 USAGE PATTERNS:")
+    print(f"   Daily Average: {report['usage_patterns']['average_jobs_per_day']} jobs/day")
+    print(f"   Avg Job Length: {report['usage_patterns']['average_audio_per_job_minutes']} min")
+    print(f"   Recent Activity: {report['usage_patterns']['recent_activity_percent']}% of total")
+    
+    print(f"\n💰 LIFETIME TOTALS:")
+    print(f"   Total Jobs: {report['lifetime_totals']['total_jobs']:,}")
+    print(f"   Total Audio: {report['lifetime_totals']['total_audio_hours']} hours")
+    print(f"   Est. Total Cost: {report['lifetime_totals']['estimated_total_cost']}")
+
+# Usage
+print_usage_report('stx_live_your_api_key')
+```
+</CodeGroup>
+
+## Key Performance Indicators (KPIs)
+
+<AccordionGroup>
+<Accordion title="📈 Success Rate">
+  **Target**: >95%
+  
+  Percentage of jobs that complete successfully. A declining success rate may indicate:
+  - Audio quality issues
+  - Unsupported file formats
+  - System performance problems
+</Accordion>
+
+<Accordion title="⏱️ Processing Efficiency">
+  **Typical ratios**: 1:4 to 1:8 (processing:audio time)
+  
+  Monitor for:
+  - Unusual processing delays
+  - Queue depth trends
+  - Peak usage patterns
+</Accordion>
+
+<Accordion title="📊 Volume Trends">
+  **Metrics**: Jobs per day, audio hours per month
+  
+  Track growth patterns:
+  - Seasonal variations
+  - Usage spikes
+  - Capacity planning needs
+</Accordion>
+
+<Accordion title="💰 Cost Management">
+  **Calculate**: Audio hours × pricing tier
+  
+  Monitor:
+  - Monthly spend trends
+  - Cost per job
+  - Budget adherence
+</Accordion>
+</AccordionGroup>
+
+## Usage Optimization Tips
+
+<AccordionGroup>
+<Accordion title="🎯 Improve Success Rate">
+  - Test audio quality before uploading
+  - Use supported file formats
+  - Implement proper error handling
+  - Monitor failed job patterns
+</Accordion>
+
+<Accordion title="⚡ Optimize Processing">
+  - Batch jobs during off-peak hours
+  - Use appropriate quality settings
+  - Consider file size vs. quality trade-offs
+  - Implement retry logic for transient failures
+</Accordion>
+
+<Accordion title="💰 Cost Control">
+  - Set usage alerts and limits
+  - Archive old results to reduce storage costs  
+  - Use re-transcription for different formats
+  - Monitor queue depths to avoid rush charges
+</Accordion>
+
+<Accordion title="📊 Capacity Planning">
+  - Track growth trends monthly
+  - Plan for seasonal variations
+  - Monitor peak usage periods
+  - Set up scaling alerts
+</Accordion>
+</AccordionGroup>
+
+## Monitoring & Alerts
+
+<CodeGroup>
+```javascript Usage Monitoring System
+class UsageMonitor {
+  constructor(apiKey, thresholds = {}) {
+    this.apiKey = apiKey;
+    this.thresholds = {
+      lowSuccessRate: thresholds.lowSuccessRate || 90,
+      highQueueDepth: thresholds.highQueueDepth || 50,
+      highDailyUsage: thresholds.highDailyUsage || 100,
+      ...thresholds
+    };
+  }
+
+  async checkAlerts() {
+    const stats = await getUsageStats();
+    const alerts = [];
+
+    // Success rate alert
+    const successRate = parseFloat(stats.successRate.replace('%', ''));
+    if (successRate < this.thresholds.lowSuccessRate) {
+      alerts.push({
+        type: 'warning',
+        metric: 'success_rate',
+        message: `Success rate (${stats.successRate}) below threshold (${this.thresholds.lowSuccessRate}%)`,
+        value: successRate,
+        threshold: this.thresholds.lowSuccessRate
+      });
+    }
+
+    // Queue depth alert
+    if (stats.total.processing > this.thresholds.highQueueDepth) {
+      alerts.push({
+        type: 'info',
+        metric: 'queue_depth',
+        message: `High queue depth: ${stats.total.processing} jobs processing`,
+        value: stats.total.processing,
+        threshold: this.thresholds.highQueueDepth
+      });
+    }
+
+    // Daily usage alert
+    const dailyAverage = stats.last30Days.jobs / 30;
+    if (dailyAverage > this.thresholds.highDailyUsage) {
+      alerts.push({
+        type: 'info',
+        metric: 'daily_usage',
+        message: `High daily usage: ${dailyAverage.toFixed(1)} jobs/day`,
+        value: dailyAverage,
+        threshold: this.thresholds.highDailyUsage
+      });
+    }
+
+    return { stats, alerts };
+  }
+
+  async generateHealthReport() {
+    const { stats, alerts } = await this.checkAlerts();
+    
+    const health = {
+      overall: alerts.length === 0 ? 'healthy' : 'attention_needed',
+      alerts: alerts,
+      metrics: {
+        successRate: stats.successRate,
+        queueDepth: stats.total.processing,
+        dailyAverage: (stats.last30Days.jobs / 30).toFixed(1),
+        recentActivity: stats.last30Days.jobs
+      }
+    };
+
+    return health;
+  }
+}
+
+// Set up monitoring
+const monitor = new UsageMonitor(apiKey, {
+  lowSuccessRate: 95,
+  highQueueDepth: 25,
+  highDailyUsage: 200
+});
+
+const health = await monitor.generateHealthReport();
+console.log('System Health:', health.overall);
+
+if (health.alerts.length > 0) {
+  console.log('\n⚠️  Alerts:');
+  health.alerts.forEach(alert => {
+    console.log(`  ${alert.type.toUpperCase()}: ${alert.message}`);
+  });
+}
+```
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="📊 Regular Monitoring">
+  Check usage statistics weekly to identify trends and optimize performance.
+</Accordion>
+
+<Accordion title="📈 Trend Analysis">
+  Track metrics over time to identify growth patterns and capacity needs.
+</Accordion>
+
+<Accordion title="🚨 Alert Setup">
+  Implement monitoring alerts for success rate drops and queue depth spikes.
+</Accordion>
+
+<Accordion title="💰 Cost Tracking">
+  Monitor usage patterns to optimize costs and predict monthly spending.
+</Accordion>
+
+<Accordion title="📋 Reporting">
+  Generate regular reports for stakeholders and budget planning.
+</Accordion>
+</AccordionGroup>
+
+<Card title="List Jobs" icon="list" href="/api-reference/jobs/list">
+  Analyze individual jobs for detailed insights
+</Card>
+
+<Card title="API Introduction" icon="book-open" href="/api-reference/introduction">
+  Learn more about optimizing your API usage
+</Card>

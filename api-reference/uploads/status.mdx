@@ -1,0 +1,447 @@
+---
+title: 'Get Upload Status'
+openapi: 'GET /v1/uploads/{uploadId}/status'
+---
+
+Check the current status and progress of a multipart upload. Use this endpoint to monitor upload progress, detect issues, and provide user feedback.
+
+## Path Parameters
+
+<ParamField path="uploadId" type="string" required>
+  The upload ID to check status for. This is returned from the `/v1/uploads/initiate` response.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="uploadId" type="string" required>
+  The upload ID being checked.
+  
+  Example: `"clp2x3q4y0001ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Current status of the upload.
+  
+  **Possible Values:**
+  - `initiated`: Upload created, ready to receive parts
+  - `uploading`: Parts are being uploaded
+  - `completed`: All parts uploaded and upload completed successfully
+  - `aborted`: Upload was cancelled/aborted
+  - `failed`: Upload failed due to an error
+</ResponseField>
+
+<ResponseField name="filename" type="string" required>
+  Original filename from the initiate request.
+  
+  Example: `"large-audio-file.wav"`
+</ResponseField>
+
+<ResponseField name="totalSize" type="string" required>
+  Total file size in bytes as a string (for BigInt compatibility).
+  
+  Example: `"2147483648"`
+</ResponseField>
+
+<ResponseField name="totalParts" type="integer" required>
+  Total number of parts required for this upload.
+  
+  Example: `64`
+</ResponseField>
+
+<ResponseField name="completedParts" type="integer" required>
+  Number of parts that have been successfully uploaded.
+  
+  Example: `32`
+</ResponseField>
+
+<ResponseField name="progress" type="number" required>
+  Upload progress as a decimal between 0.0 and 1.0.
+  
+  Example: `0.5` (50% complete)
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp when the upload was initiated.
+  
+  Example: `"2024-01-15T10:30:00.000Z"`
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string" required>
+  ISO 8601 timestamp when the upload will expire.
+  
+  Example: `"2024-01-15T16:30:00.000Z"`
+</ResponseField>
+
+<ResponseField name="parts" type="array" required>
+  Detailed status of each individual part.
+  
+  <Expandable title="Part Status">
+    <ResponseField name="parts[].partNumber" type="integer">
+      Part number (1-based).
+    </ResponseField>
+    <ResponseField name="parts[].status" type="string">
+      Status of this specific part:
+      - `pending`: Not yet uploaded
+      - `uploaded`: Successfully uploaded
+      - `failed`: Upload failed for this part
+    </ResponseField>
+    <ResponseField name="parts[].uploadedAt" type="string">
+      ISO 8601 timestamp when this part was uploaded (if uploaded).
+    </ResponseField>
+    <ResponseField name="parts[].size" type="string">
+      Size of this part in bytes as a string.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function checkUploadStatus(uploadId, uploadToken) {
+  const response = await fetch(`/v1/uploads/${uploadId}/status`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${uploadToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get upload status: ${response.statusText}`);
+  }
+
+  const status = await response.json();
+  
+  console.log(`Upload ${uploadId}:`);
+  console.log(`- Status: ${status.status}`);
+  console.log(`- Progress: ${(status.progress * 100).toFixed(1)}%`);
+  console.log(`- Parts: ${status.completedParts}/${status.totalParts}`);
+  
+  return status;
+}
+
+// Poll upload progress
+async function monitorUpload(uploadId, uploadToken) {
+  const pollInterval = 2000; // 2 seconds
+  
+  while (true) {
+    try {
+      const status = await checkUploadStatus(uploadId, uploadToken);
+      
+      if (status.status === 'completed') {
+        console.log('Upload completed successfully!');
+        return status;
+      }
+      
+      if (status.status === 'failed' || status.status === 'aborted') {
+        throw new Error(`Upload ${status.status}`);
+      }
+      
+      // Update UI with progress
+      updateProgressBar(status.progress);
+      
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+    } catch (error) {
+      console.error('Error checking upload status:', error);
+      throw error;
+    }
+  }
+}
+```
+
+```python Python
+import requests
+import time
+
+def check_upload_status(upload_id, upload_token):
+    url = f'https://api.sonartext.com/v1/uploads/{upload_id}/status'
+    
+    headers = {
+        'Authorization': f'Bearer {upload_token}'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        status = response.json()
+        
+        print(f"Upload {upload_id}:")
+        print(f"- Status: {status['status']}")
+        print(f"- Progress: {status['progress'] * 100:.1f}%")
+        print(f"- Parts: {status['completedParts']}/{status['totalParts']}")
+        
+        return status
+    else:
+        raise Exception(f"Failed to get upload status: {response.text}")
+
+def monitor_upload(upload_id, upload_token, poll_interval=2):
+    """Monitor upload progress until completion or failure."""
+    
+    while True:
+        try:
+            status = check_upload_status(upload_id, upload_token)
+            
+            if status['status'] == 'completed':
+                print('Upload completed successfully!')
+                return status
+            
+            if status['status'] in ['failed', 'aborted']:
+                raise Exception(f"Upload {status['status']}")
+            
+            # Wait before next poll
+            time.sleep(poll_interval)
+            
+        except Exception as e:
+            print(f"Error monitoring upload: {e}")
+            raise
+```
+
+```curl cURL
+curl -X GET 'https://api.sonartext.com/v1/uploads/clp2x3q4y0001ab2cde3fghij/status' \
+  -H 'Authorization: Bearer your_upload_token_here'
+```
+</CodeGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Upload In Progress
+{
+  "uploadId": "clp2x3q4y0001ab2cde3fghij",
+  "status": "uploading",
+  "filename": "large-audio-file.wav",
+  "totalSize": "2147483648",
+  "totalParts": 64,
+  "completedParts": 32,
+  "progress": 0.5,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "expiresAt": "2024-01-15T16:30:00.000Z",
+  "parts": [
+    {
+      "partNumber": 1,
+      "status": "uploaded",
+      "uploadedAt": "2024-01-15T10:31:15.000Z",
+      "size": "33554432"
+    },
+    {
+      "partNumber": 2,
+      "status": "uploaded",
+      "uploadedAt": "2024-01-15T10:31:18.000Z",
+      "size": "33554432"
+    },
+    {
+      "partNumber": 33,
+      "status": "pending",
+      "uploadedAt": null,
+      "size": "33554432"
+    }
+    // ... more parts
+  ]
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Upload Completed
+{
+  "uploadId": "clp2x3q4y0001ab2cde3fghij",
+  "status": "completed",
+  "filename": "large-audio-file.wav",
+  "totalSize": "2147483648",
+  "totalParts": 64,
+  "completedParts": 64,
+  "progress": 1.0,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "expiresAt": "2024-01-15T16:30:00.000Z",
+  "parts": [
+    {
+      "partNumber": 1,
+      "status": "uploaded",
+      "uploadedAt": "2024-01-15T10:31:15.000Z",
+      "size": "33554432"
+    }
+    // ... all 64 parts with status "uploaded"
+  ]
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Upload Failed
+{
+  "uploadId": "clp2x3q4y0001ab2cde3fghij",
+  "status": "failed",
+  "filename": "large-audio-file.wav",
+  "totalSize": "2147483648",
+  "totalParts": 64,
+  "completedParts": 28,
+  "progress": 0.4375,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "expiresAt": "2024-01-15T16:30:00.000Z",
+  "parts": [
+    {
+      "partNumber": 1,
+      "status": "uploaded",
+      "uploadedAt": "2024-01-15T10:31:15.000Z",
+      "size": "33554432"
+    },
+    {
+      "partNumber": 29,
+      "status": "failed",
+      "uploadedAt": null,
+      "size": "33554432"
+    }
+    // ... more parts
+  ]
+}
+```
+</ResponseExample>
+
+## Building a Progress Monitor
+
+Here's a complete example of building a progress monitor with retry logic:
+
+```javascript
+class UploadMonitor {
+  constructor(uploadId, uploadToken, options = {}) {
+    this.uploadId = uploadId;
+    this.uploadToken = uploadToken;
+    this.pollInterval = options.pollInterval || 2000;
+    this.maxRetries = options.maxRetries || 3;
+    this.onProgress = options.onProgress || (() => {});
+    this.onComplete = options.onComplete || (() => {});
+    this.onError = options.onError || (() => {});
+  }
+
+  async start() {
+    let retries = 0;
+    
+    while (retries < this.maxRetries) {
+      try {
+        const status = await this.checkStatus();
+        
+        // Call progress callback
+        this.onProgress({
+          progress: status.progress,
+          completedParts: status.completedParts,
+          totalParts: status.totalParts,
+          status: status.status
+        });
+        
+        switch (status.status) {
+          case 'completed':
+            this.onComplete(status);
+            return status;
+            
+          case 'failed':
+          case 'aborted':
+            throw new Error(`Upload ${status.status}`);
+            
+          case 'uploading':
+          case 'initiated':
+            // Check for stalled parts
+            const stalledParts = this.findStalledParts(status);
+            if (stalledParts.length > 0) {
+              console.warn(`Found ${stalledParts.length} stalled parts`);
+              // Could trigger part re-upload here
+            }
+            break;
+        }
+        
+        // Reset retry counter on successful check
+        retries = 0;
+        
+        await this.sleep(this.pollInterval);
+        
+      } catch (error) {
+        retries++;
+        console.error(`Status check failed (attempt ${retries}):`, error.message);
+        
+        if (retries >= this.maxRetries) {
+          this.onError(error);
+          throw error;
+        }
+        
+        await this.sleep(this.pollInterval * retries); // Exponential backoff
+      }
+    }
+  }
+
+  async checkStatus() {
+    const response = await fetch(`/v1/uploads/${this.uploadId}/status`, {
+      headers: { 'Authorization': `Bearer ${this.uploadToken}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Status check failed: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
+  findStalledParts(status) {
+    const now = new Date();
+    const stallThreshold = 5 * 60 * 1000; // 5 minutes
+    
+    return status.parts.filter(part => {
+      if (part.status !== 'pending') return false;
+      
+      const timeSinceCreated = now - new Date(status.createdAt);
+      return timeSinceCreated > stallThreshold;
+    });
+  }
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Usage
+const monitor = new UploadMonitor(uploadId, uploadToken, {
+  onProgress: ({ progress, completedParts, totalParts }) => {
+    console.log(`Progress: ${(progress * 100).toFixed(1)}% (${completedParts}/${totalParts} parts)`);
+    updateProgressBar(progress);
+  },
+  onComplete: (status) => {
+    console.log('Upload completed successfully!');
+    showSuccessMessage();
+  },
+  onError: (error) => {
+    console.error('Upload monitoring failed:', error);
+    showErrorMessage(error.message);
+  }
+});
+
+monitor.start();
+```
+
+## Status Interpretation
+
+<AccordionGroup>
+<Accordion title="📊 Progress Calculation">
+  Progress is calculated as `completedParts / totalParts`. A progress of `0.5` means 50% of parts have been uploaded.
+</Accordion>
+
+<Accordion title="⏱️ Expiration Handling">
+  Check `expiresAt` to ensure the upload hasn't expired. Expired uploads should be aborted and restarted.
+</Accordion>
+
+<Accordion title="🔍 Part-Level Monitoring">
+  Use the `parts` array to identify specific failed parts and implement targeted retry logic.
+</Accordion>
+
+<Accordion title="🚨 Stall Detection">
+  If progress hasn't changed for an extended period, check individual part statuses to identify stalled uploads.
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+The status endpoint should be polled responsibly. Avoid polling more frequently than once every 1-2 seconds to prevent overwhelming the API.
+</Warning>
+
+<Card title="Complete Upload" icon="check" href="/api-reference/uploads/complete">
+  Ready to complete your upload? Learn how to finish and start transcription
+</Card>

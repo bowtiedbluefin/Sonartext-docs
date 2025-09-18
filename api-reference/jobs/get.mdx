@@ -1,0 +1,492 @@
+---
+title: 'Get Job Details'
+openapi: 'GET /jobs/{jobId}'
+---
+
+Get detailed status and metadata for a specific transcription or text-to-speech job.
+
+## Path Parameters
+
+<ParamField path="jobId" type="string" required>
+  Unique identifier for the job to retrieve details for.
+  
+  **Example**: `"clp2x3q4y0002ab2cde3fghij"`
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="id" type="string" required>
+  Unique job identifier.
+  
+  **Example**: `"clp2x3q4y0002ab2cde3fghij"`
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  Current job status.
+  
+  **Possible Values**:
+  - `queued` - Job is waiting to be processed
+  - `processing` - Job is currently being processed  
+  - `completed` - Job completed successfully
+  - `failed` - Job failed with an error
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Type of job (currently always `transcription`).
+  
+  **Default**: `"transcription"`
+</ResponseField>
+
+<ResponseField name="fileName" type="string" required>
+  Original filename of the uploaded file.
+  
+  **Example**: `"meeting-recording.wav"`
+</ResponseField>
+
+<ResponseField name="fileSize" type="integer" required>
+  Size of the original file in bytes.
+  
+  **Example**: `52428800` (50MB)
+</ResponseField>
+
+<ResponseField name="duration" type="number">
+  Duration of the audio in seconds (available for completed jobs).
+  
+  **Example**: `1847.3` (30 minutes 47 seconds)
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message describing why the job failed (only present for failed jobs).
+  
+  **Example**: `"Unable to decode audio file: corrupted MP3 header"`
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp when the job was created.
+  
+  **Example**: `"2024-01-15T10:30:00.000Z"`
+</ResponseField>
+
+<ResponseField name="completedAt" type="string">
+  ISO 8601 timestamp when the job completed (for completed or failed jobs).
+  
+  **Example**: `"2024-01-15T10:45:30.000Z"`
+</ResponseField>
+
+<ResponseField name="resultAvailable" type="boolean" required>
+  Whether transcription results are available for download.
+  
+  **Note**: Only `true` for successfully completed transcription jobs.
+</ResponseField>
+
+<ResponseField name="estimatedCompletion" type="string">
+  Estimated completion time for processing jobs (ISO 8601 timestamp).
+  
+  **Example**: `"2024-01-15T10:50:00.000Z"`
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function getJobDetails(jobId) {
+  const response = await fetch(`/jobs/${jobId}`, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Job not found');
+    }
+    throw new Error(`Failed to get job details: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Get details for a specific job
+const jobDetails = await getJobDetails('clp2x3q4y0002ab2cde3fghij');
+
+console.log(`Job Status: ${jobDetails.status}`);
+console.log(`File: ${jobDetails.fileName} (${(jobDetails.fileSize / 1024 / 1024).toFixed(1)}MB)`);
+
+if (jobDetails.duration) {
+  const minutes = Math.floor(jobDetails.duration / 60);
+  const seconds = Math.floor(jobDetails.duration % 60);
+  console.log(`Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`);
+}
+
+if (jobDetails.resultAvailable) {
+  console.log('Results are ready for download!');
+}
+```
+
+```python Python
+import requests
+from datetime import datetime
+
+def get_job_details(job_id, api_key):
+    url = f'https://api.sonartext.com/jobs/{job_id}'
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code == 404:
+        raise Exception('Job not found')
+    else:
+        raise Exception(f"Failed to get job details: {response.text}")
+
+# Get job details with formatted output
+def print_job_summary(job_id, api_key):
+    try:
+        job = get_job_details(job_id, api_key)
+        
+        print(f"Job ID: {job['id']}")
+        print(f"Status: {job['status']}")
+        print(f"File: {job['fileName']} ({job['fileSize'] / 1024 / 1024:.1f}MB)")
+        
+        created = datetime.fromisoformat(job['createdAt'].replace('Z', '+00:00'))
+        print(f"Created: {created.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        
+        if job['status'] == 'completed' and job.get('completedAt'):
+            completed = datetime.fromisoformat(job['completedAt'].replace('Z', '+00:00'))
+            duration = (completed - created).total_seconds()
+            print(f"Completed: {completed.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            print(f"Processing time: {duration:.1f} seconds")
+        
+        if job.get('duration'):
+            minutes, seconds = divmod(int(job['duration']), 60)
+            print(f"Audio duration: {minutes}:{seconds:02d}")
+        
+        if job['status'] == 'failed' and job.get('error'):
+            print(f"Error: {job['error']}")
+        
+        if job.get('estimatedCompletion'):
+            eta = datetime.fromisoformat(job['estimatedCompletion'].replace('Z', '+00:00'))
+            print(f"ETA: {eta.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        
+        return job
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+# Usage
+job_details = print_job_summary('clp2x3q4y0002ab2cde3fghij', 'stx_live_your_api_key')
+```
+
+```curl cURL
+curl -X GET 'https://api.sonartext.com/jobs/clp2x3q4y0002ab2cde3fghij' \
+  -H 'Authorization: Bearer stx_live_your_api_key'
+```
+</CodeGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Completed Job
+{
+  "id": "clp2x3q4y0002ab2cde3fghij",
+  "status": "completed",
+  "type": "transcription",
+  "fileName": "meeting-recording.wav",
+  "fileSize": 52428800,
+  "duration": 1847.3,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "completedAt": "2024-01-15T10:45:30.000Z",
+  "resultAvailable": true
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Processing Job
+{
+  "id": "clp2x3q4y0003ab2cde3fghij",
+  "status": "processing",
+  "type": "transcription",
+  "fileName": "interview.mp3",
+  "fileSize": 31457280,
+  "createdAt": "2024-01-15T11:00:00.000Z",
+  "estimatedCompletion": "2024-01-15T11:12:00.000Z",
+  "resultAvailable": false
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Failed Job
+{
+  "id": "clp2x3q4y0004ab2cde3fghij",
+  "status": "failed",
+  "type": "transcription",
+  "fileName": "corrupted-audio.wav",
+  "fileSize": 15728640,
+  "error": "Unable to decode audio file: invalid MP3 header at byte 1024",
+  "createdAt": "2024-01-15T11:15:00.000Z",
+  "completedAt": "2024-01-15T11:15:45.000Z",
+  "resultAvailable": false
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Queued Job
+{
+  "id": "clp2x3q4y0005ab2cde3fghij",
+  "status": "queued",
+  "type": "transcription",
+  "fileName": "podcast-episode-42.mp3",
+  "fileSize": 89128960,
+  "createdAt": "2024-01-15T11:30:00.000Z",
+  "resultAvailable": false
+}
+```
+</ResponseExample>
+
+## Job Status Monitoring
+
+<CodeGroup>
+```javascript Real-time Job Monitoring
+class JobMonitor {
+  constructor(jobId, apiKey, options = {}) {
+    this.jobId = jobId;
+    this.apiKey = apiKey;
+    this.pollInterval = options.pollInterval || 5000; // 5 seconds
+    this.maxRetries = options.maxRetries || 3;
+    this.onStatusChange = options.onStatusChange || (() => {});
+    this.onComplete = options.onComplete || (() => {});
+    this.onError = options.onError || (() => {});
+  }
+
+  async start() {
+    let lastStatus = null;
+    let retries = 0;
+
+    while (true) {
+      try {
+        const job = await getJobDetails(this.jobId, this.apiKey);
+        
+        // Call status change callback if status changed
+        if (job.status !== lastStatus) {
+          this.onStatusChange(job.status, job);
+          lastStatus = job.status;
+        }
+
+        // Check if job is finished
+        if (job.status === 'completed') {
+          this.onComplete(job);
+          return job;
+        }
+
+        if (job.status === 'failed') {
+          this.onError(new Error(job.error || 'Job failed'), job);
+          return job;
+        }
+
+        // Reset retry counter on successful check
+        retries = 0;
+        
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, this.pollInterval));
+
+      } catch (error) {
+        retries++;
+        console.warn(`Failed to check job status (attempt ${retries}):`, error.message);
+
+        if (retries >= this.maxRetries) {
+          this.onError(error);
+          throw error;
+        }
+
+        // Wait longer before retry
+        await new Promise(resolve => 
+          setTimeout(resolve, this.pollInterval * retries)
+        );
+      }
+    }
+  }
+}
+
+// Usage
+const monitor = new JobMonitor('clp2x3q4y0003ab2cde3fghij', apiKey, {
+  onStatusChange: (status, job) => {
+    console.log(`Job status changed to: ${status}`);
+    updateUI(job);
+  },
+  onComplete: (job) => {
+    console.log('Job completed successfully!');
+    downloadResults(job.id);
+  },
+  onError: (error, job) => {
+    console.error('Job failed:', error.message);
+    showErrorNotification(error.message);
+  }
+});
+
+monitor.start();
+```
+
+```python Job Status Tracker
+import requests
+import time
+from datetime import datetime, timedelta
+
+class JobTracker:
+    def __init__(self, job_id, api_key, poll_interval=5):
+        self.job_id = job_id
+        self.api_key = api_key
+        self.poll_interval = poll_interval
+    
+    def wait_for_completion(self, timeout_minutes=30):
+        """Wait for job completion with timeout."""
+        
+        start_time = datetime.now()
+        timeout = timedelta(minutes=timeout_minutes)
+        last_status = None
+        
+        while datetime.now() - start_time < timeout:
+            try:
+                job = get_job_details(self.job_id, self.api_key)
+                
+                # Log status changes
+                if job['status'] != last_status:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Status: {job['status']}")
+                    last_status = job['status']
+                
+                # Check completion
+                if job['status'] == 'completed':
+                    processing_time = datetime.fromisoformat(
+                        job['completedAt'].replace('Z', '+00:00')
+                    ) - datetime.fromisoformat(
+                        job['createdAt'].replace('Z', '+00:00')
+                    )
+                    
+                    print(f"Job completed in {processing_time.total_seconds():.1f} seconds")
+                    return job
+                
+                elif job['status'] == 'failed':
+                    print(f"Job failed: {job.get('error', 'Unknown error')}")
+                    return job
+                
+                # Show ETA for processing jobs
+                elif job['status'] == 'processing' and job.get('estimatedCompletion'):
+                    eta = datetime.fromisoformat(job['estimatedCompletion'].replace('Z', '+00:00'))
+                    time_left = (eta - datetime.now()).total_seconds() / 60
+                    
+                    if time_left > 0:
+                        print(f"  ETA: ~{time_left:.1f} minutes remaining")
+                
+                time.sleep(self.poll_interval)
+                
+            except Exception as e:
+                print(f"Error checking job status: {e}")
+                time.sleep(self.poll_interval)
+        
+        # Timeout reached
+        print(f"Timeout reached after {timeout_minutes} minutes")
+        return None
+
+# Usage
+tracker = JobTracker('clp2x3q4y0003ab2cde3fghij', 'stx_live_your_api_key')
+final_job = tracker.wait_for_completion(timeout_minutes=45)
+
+if final_job and final_job['status'] == 'completed':
+    print("Job completed successfully!")
+    # Download results...
+```
+</CodeGroup>
+
+## Processing Time Estimates
+
+Job processing time depends on several factors:
+
+<AccordionGroup>
+<Accordion title="🎵 Audio Duration">
+  **Typical ratio**: 1:4 to 1:8 (1 minute of audio takes 4-8 seconds to process)
+  
+  - Short files (< 5 min): Usually 30-60 seconds
+  - Medium files (5-30 min): 2-8 minutes  
+  - Long files (> 30 min): 8-25 minutes
+</Accordion>
+
+<Accordion title="🔊 Audio Quality">
+  **Factors affecting processing time**:
+  - Clear audio: Faster processing
+  - Noisy/poor quality: Slower processing
+  - Multiple speakers: Additional time for diarization
+  - Background music/noise: Longer processing
+</Accordion>
+
+<Accordion title="📊 System Load">
+  **Queue factors**:
+  - Low usage periods: Near real-time processing
+  - High demand: Additional queue time
+  - Large files: May be batched for efficiency
+</Accordion>
+
+<Accordion title="⚙️ Processing Options">
+  **Feature impact**:
+  - Basic transcription: Fastest
+  - Speaker diarization: +20-50% processing time
+  - Word-level timestamps: +10-20% processing time
+  - Multiple output formats: Minimal additional time
+</Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+<ResponseExample>
+```json Job Not Found
+{
+  "error": "job_not_found",
+  "message": "Job with the specified ID was not found",
+  "details": {
+    "jobId": "invalid_job_id"
+  }
+}
+```
+</ResponseExample>
+
+## Common Error Types
+
+<AccordionGroup>
+<Accordion title="🎵 Audio Format Issues">
+  - `"Unable to decode audio file"` - Corrupted or unsupported format
+  - `"Invalid audio format"` - File extension doesn't match content
+  - `"No audio stream found"` - Video file without audio track
+</Accordion>
+
+<Accordion title="📁 File Access Issues">
+  - `"File not found"` - R2 object or download URL inaccessible
+  - `"Download failed"` - Network issues with external URLs
+  - `"File size mismatch"` - Uploaded file size doesn't match metadata
+</Accordion>
+
+<Accordion title="⚙️ Processing Issues">
+  - `"Audio too short"` - File contains less than 1 second of audio
+  - `"Processing timeout"` - File too large or complex for processing limits
+  - `"Insufficient quality"` - Audio quality too poor for reliable transcription
+</Accordion>
+
+<Accordion title="💳 Account Issues">
+  - `"Insufficient credits"` - Account balance too low
+  - `"Rate limit exceeded"` - Too many concurrent jobs
+  - `"Account suspended"` - Account access restricted
+</Accordion>
+</AccordionGroup>
+
+<Card title="Download Results" icon="download" href="/api-reference/jobs/result">
+  Get transcription results for completed jobs
+</Card>
+
+<Card title="Cancel Job" icon="xmark" href="/api-reference/jobs/cancel">
+  Cancel a queued or processing job
+</Card>

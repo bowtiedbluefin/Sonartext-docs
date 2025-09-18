@@ -1,0 +1,484 @@
+---
+title: 'Generate Speech'
+openapi: 'POST /v1/audio/speech'
+---
+
+OpenAI-compatible text-to-speech endpoint that converts text into natural-sounding audio using high-quality neural TTS models.
+
+## Key Features
+
+<CardGroup cols={2}>
+<Card title="Multiple Voices" icon="microphone-lines">
+  60+ voice options with different accents, genders, and speaking styles
+</Card>
+
+<Card title="Flexible Speed" icon="gauge-high">
+  Adjustable speech speed from 0.25x to 4.0x normal rate
+</Card>
+
+<Card title="Multiple Formats" icon="waveform-lines">
+  Support for MP3, WAV, FLAC, AAC, Opus, and PCM audio formats
+</Card>
+
+<Card title="High Quality" icon="badge-check">
+  Neural TTS models for natural-sounding, human-like speech
+</Card>
+</CardGroup>
+
+## Request Parameters
+
+<ParamField body="input" type="string" required>
+  The text to generate audio for. Maximum length is 4,096 characters.
+  
+  **Example**: `"Hello, this is a sample text for speech synthesis."`
+</ParamField>
+
+<ParamField body="model" type="string" default="tts-kokoro">
+  TTS model to use for speech generation.
+  
+  **Available models**: `tts-kokoro` (currently the only supported model)
+  **Example**: `"tts-kokoro"`
+</ParamField>
+
+<ParamField body="voice" type="string" default="af_sky">
+  Voice to use for speech generation. Choose from 60+ available voices.
+  
+  **Categories**:
+  - **af_** - Adult Female voices (American accent)
+  - **am_** - Adult Male voices (American accent)  
+  - **bf_** - British Female voices
+  - **bm_** - British Male voices
+  - **zf_** - Chinese Female voices
+  - **zm_** - Chinese Male voices
+  - **ff_** - French Female voices
+  - **hf_** - Hindi Female voices
+  - **hm_** - Hindi Male voices
+  - **if_** - Italian Female voices
+  - **im_** - Italian Male voices
+  - **jf_** - Japanese Female voices
+  - **jm_** - Japanese Male voices
+  - **pf_** - Portuguese Female voices
+  - **pm_** - Portuguese Male voices
+  - **ef_** - Spanish Female voices
+  - **em_** - Spanish Male voices
+  
+  **Popular options**: `af_sky`, `am_adam`, `bf_alice`, `bm_daniel`
+</ParamField>
+
+<ParamField body="response_format" type="string" default="mp3">
+  Audio format for the output file.
+  
+  **Options**:
+  - `mp3` - Most common, good compression
+  - `wav` - Uncompressed, high quality
+  - `flac` - Lossless compression
+  - `aac` - Good compression, widely supported
+  - `opus` - Modern codec, excellent for streaming
+  - `pcm` - Raw audio data
+</ParamField>
+
+<ParamField body="speed" type="number" default="1.0">
+  Speed of speech generation. Range: 0.25 to 4.0.
+  
+  **Examples**:
+  - `0.5` - Half speed (slower)
+  - `1.0` - Normal speed
+  - `1.5` - 1.5x faster
+  - `2.0` - Double speed
+</ParamField>
+
+<ParamField body="streaming" type="boolean" default="false">
+  Whether to stream the audio response as it's generated.
+  
+  **Note**: Currently not implemented - responses are always buffered.
+</ParamField>
+
+## Available Voices
+
+<Tabs>
+<Tab title="American English">
+**Female Voices (af_)**:
+- `af_alloy` - Clear, professional
+- `af_aoede` - Warm, friendly  
+- `af_bella` - Smooth, elegant
+- `af_heart` - Expressive, emotional
+- `af_jadzia` - Strong, confident
+- `af_jessica` - Natural, conversational
+- `af_kore` - Crisp, articulate
+- `af_nicole` - Soft, gentle
+- `af_nova` - Dynamic, energetic
+- `af_river` - Calm, soothing
+- `af_sarah` - Professional, clear
+- `af_sky` - Bright, cheerful
+
+**Male Voices (am_)**:
+- `am_adam` - Deep, authoritative
+- `am_echo` - Rich, resonant
+- `am_eric` - Friendly, approachable
+- `am_fenrir` - Strong, powerful
+- `am_liam` - Young, casual
+- `am_michael` - Professional, clear
+- `am_onyx` - Smooth, sophisticated
+- `am_puck` - Playful, energetic
+- `am_santa` - Warm, jolly
+</Tab>
+
+<Tab title="British English">
+**Female Voices (bf_)**:
+- `bf_alice` - Refined, elegant
+- `bf_emma` - Warm, friendly
+- `bf_lily` - Soft, gentle
+
+**Male Voices (bm_)**:
+- `bm_daniel` - Distinguished, professional
+- `bm_fable` - Storytelling, expressive
+- `bm_george` - Authoritative, clear
+- `bm_lewis` - Friendly, approachable
+</Tab>
+
+<Tab title="Other Languages">
+**Chinese (Mandarin)**:
+- `zf_xiaobei`, `zf_xiaoni`, `zf_xiaoxiao`, `zf_xiaoyi` (Female)
+- `zm_yunjian`, `zm_yunxi`, `zm_yunxia`, `zm_yunyang` (Male)
+
+**French**:
+- `ff_siwis` (Female)
+
+**Hindi**:
+- `hf_alpha`, `hf_beta` (Female)
+- `hm_omega`, `hm_psi` (Male)
+
+**Italian**:
+- `if_sara` (Female)
+- `im_nicola` (Male)
+
+**Japanese**:
+- `jf_alpha`, `jf_gongitsune`, `jf_nezumi`, `jf_tebukuro` (Female)
+- `jm_kumo` (Male)
+
+**Portuguese**:
+- `pf_dora` (Female)
+- `pm_alex`, `pm_santa` (Male)
+
+**Spanish**:
+- `ef_dora` (Female)
+- `em_alex`, `em_santa` (Male)
+</Tab>
+</Tabs>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function generateSpeech(text, options = {}) {
+  const response = await fetch('/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      input: text,
+      model: options.model || 'tts-kokoro',
+      voice: options.voice || 'af_sky',
+      response_format: options.format || 'mp3',
+      speed: options.speed || 1.0
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Speech generation failed: ${response.statusText}`);
+  }
+
+  // Return audio blob
+  return response.blob();
+}
+
+// Generate speech and play it
+const audioBlob = await generateSpeech(
+  "Welcome to our text-to-speech API! This voice sounds natural and clear.",
+  {
+    voice: 'af_sky',
+    speed: 1.2,
+    format: 'mp3'
+  }
+);
+
+// Create audio URL and play
+const audioUrl = URL.createObjectURL(audioBlob);
+const audio = new Audio(audioUrl);
+audio.play();
+```
+
+```python Python
+import requests
+import io
+
+def generate_speech(text, api_key, voice='af_sky', speed=1.0, format='mp3'):
+    url = 'https://api.sonartext.com/v1/audio/speech'
+    
+    payload = {
+        'input': text,
+        'model': 'tts-kokoro',
+        'voice': voice,
+        'response_format': format,
+        'speed': speed
+    }
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        return response.content  # Audio bytes
+    else:
+        raise Exception(f"Speech generation failed: {response.text}")
+
+# Generate speech
+text = "Hello! This is a demonstration of our text-to-speech capabilities."
+audio_bytes = generate_speech(
+    text=text,
+    api_key='stx_live_your_api_key',
+    voice='am_adam',
+    speed=1.0,
+    format='wav'
+)
+
+# Save to file
+with open('generated_speech.wav', 'wb') as f:
+    f.write(audio_bytes)
+
+print(f"Generated {len(audio_bytes)} bytes of audio")
+```
+
+```curl cURL
+curl -X POST 'https://api.sonartext.com/v1/audio/speech' \
+  -H 'Authorization: Bearer stx_live_your_api_key' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "input": "This is a test of the text-to-speech API. The voice should sound natural and clear.",
+    "model": "tts-kokoro",
+    "voice": "af_sky",
+    "response_format": "mp3",
+    "speed": 1.0
+  }' \
+  --output generated_speech.mp3
+```
+</CodeGroup>
+
+## Voice Comparison Examples
+
+<CodeGroup>
+```javascript Female Voices Comparison
+const voices = ['af_sky', 'af_bella', 'af_nova', 'bf_alice'];
+const text = "Compare how different female voices sound with the same text.";
+
+for (const voice of voices) {
+  const audio = await generateSpeech(text, { voice });
+  console.log(`Generated audio with voice: ${voice}`);
+  // Play or save audio for comparison
+}
+```
+
+```python Speed Variations
+import requests
+
+def test_speeds(text, voice, api_key):
+    speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+    
+    for speed in speeds:
+        audio = generate_speech(text, api_key, voice=voice, speed=speed)
+        filename = f'speech_speed_{speed}.mp3'
+        
+        with open(filename, 'wb') as f:
+            f.write(audio)
+        
+        print(f"Generated {filename} with speed {speed}x")
+
+# Test different speeds
+test_speeds(
+    text="This sentence is spoken at different speeds for comparison.",
+    voice='am_adam',
+    api_key='your_api_key'
+)
+```
+</CodeGroup>
+
+## Advanced Features
+
+### Multilingual Support
+
+Different voices support different languages naturally:
+
+```javascript
+// Chinese text with Chinese voice
+const chineseAudio = await generateSpeech(
+  "你好，欢迎使用我们的语音合成服务！", 
+  { voice: 'zf_xiaobei' }
+);
+
+// French text with French voice
+const frenchAudio = await generateSpeech(
+  "Bonjour! Bienvenue dans notre service de synthèse vocale.",
+  { voice: 'ff_siwis' }
+);
+
+// Spanish text with Spanish voice
+const spanishAudio = await generateSpeech(
+  "¡Hola! Bienvenido a nuestro servicio de texto a voz.",
+  { voice: 'ef_dora' }
+);
+```
+
+### Format Optimization
+
+Choose the best format for your use case:
+
+<AccordionGroup>
+<Accordion title="🎵 MP3 - General Use">
+  - **Best for**: Web applications, mobile apps
+  - **Compression**: Good (smaller files)
+  - **Quality**: High enough for most use cases
+  - **Compatibility**: Excellent across all platforms
+</Accordion>
+
+<Accordion title="🎙️ WAV - High Quality">
+  - **Best for**: Professional audio, editing
+  - **Compression**: None (larger files)
+  - **Quality**: Maximum fidelity
+  - **Compatibility**: Universal support
+</Accordion>
+
+<Accordion title="📻 AAC - Mobile Optimized">
+  - **Best for**: Mobile apps, streaming
+  - **Compression**: Better than MP3
+  - **Quality**: Excellent at lower bitrates
+  - **Compatibility**: Great on mobile devices
+</Accordion>
+
+<Accordion title="🌐 Opus - Web Streaming">
+  - **Best for**: Real-time streaming, WebRTC
+  - **Compression**: Excellent for low latency
+  - **Quality**: Superior at low bitrates
+  - **Compatibility**: Modern browsers
+</Accordion>
+</AccordionGroup>
+
+## Error Responses
+
+<ResponseExample>
+```json Text Too Long
+{
+  "error": "text_too_long",
+  "message": "Input text exceeds maximum allowed length",
+  "details": {
+    "providedLength": 5000,
+    "maxLength": 4096,
+    "characterCount": 5000
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Invalid Voice
+{
+  "error": "invalid_voice",
+  "message": "Specified voice is not available",
+  "details": {
+    "providedVoice": "nonexistent_voice",
+    "availableVoices": ["af_sky", "am_adam", "bf_alice", "..."]
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Insufficient Credits
+{
+  "error": "insufficient_credits",
+  "message": "Insufficient credits to process this request", 
+  "balance": {
+    "cents": 25,
+    "dollars": 0.25,
+    "formatted": "$0.25"
+  },
+  "cost": {
+    "cents": 50,
+    "dollars": 0.50,
+    "formatted": "$0.50"
+  },
+  "characterCount": 150,
+  "testMode": false
+}
+```
+</ResponseExample>
+
+## Billing & Usage
+
+<Info>
+Text-to-speech is billed per character processed. Pricing is based on your subscription plan.
+</Info>
+
+- **Character counting**: Includes all text characters, spaces, and punctuation
+- **Minimum charge**: 1 character minimum per request
+- **Rate limits**: Based on your plan (10-100 requests/minute)
+
+### Cost Optimization Tips
+
+<AccordionGroup>
+<Accordion title="📝 Optimize Text Length">
+  Remove unnecessary characters, extra spaces, and formatting that don't affect speech.
+</Accordion>
+
+<Accordion title="🔄 Cache Common Phrases">
+  Generate and cache audio for frequently used phrases to avoid repeated API calls.
+</Accordion>
+
+<Accordion title="⚡ Batch Processing">
+  Combine multiple short texts into longer requests when possible.
+</Accordion>
+
+<Accordion title="🎯 Format Selection">
+  Use appropriate compression formats - MP3/AAC for most use cases, WAV only when needed.
+</Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<AccordionGroup>
+<Accordion title="🎭 Voice Selection">
+  - Test different voices to find the best match for your content
+  - Consider your audience's language and accent preferences
+  - Use appropriate gender voices for your use case
+</Accordion>
+
+<Accordion title="📝 Text Preparation">
+  - Write text as you want it spoken (spell out numbers, abbreviations)
+  - Use proper punctuation for natural pacing
+  - Test with different sentence structures
+</Accordion>
+
+<Accordion title="⚡ Performance">
+  - Generate audio in advance when possible (not real-time)
+  - Use appropriate audio formats for your platform
+  - Implement proper error handling and retries
+</Accordion>
+
+<Accordion title="🔊 Quality Control">
+  - Test audio output with your target audience
+  - Adjust speed based on content complexity
+  - Consider the listening environment (headphones vs. speakers)
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+Audio generation can take several seconds depending on text length and server load. Implement appropriate loading states in your user interface.
+</Warning>
+
+<Card title="Explore Jobs API" icon="list-check" href="/api-reference/jobs/list">
+  Learn how to track and manage all your API jobs, including TTS requests
+</Card>

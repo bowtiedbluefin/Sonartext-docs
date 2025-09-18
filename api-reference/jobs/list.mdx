@@ -1,0 +1,497 @@
+---
+title: 'List Jobs'
+openapi: 'GET /jobs'
+---
+
+Get a paginated list of your transcription and text-to-speech jobs with filtering and sorting options.
+
+## Query Parameters
+
+<ParamField query="page" type="integer" default="1">
+  Page number to retrieve (1-based).
+  
+  **Example**: `2` for the second page of results
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of jobs to return per page. Range: 1-100.
+  
+  **Example**: `50` to get 50 jobs per page
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter jobs by status. If omitted, returns jobs with all statuses.
+  
+  **Options**:
+  - `queued` - Jobs waiting to be processed
+  - `processing` - Jobs currently being processed
+  - `completed` - Successfully completed jobs
+  - `failed` - Jobs that failed with errors
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="jobs" type="array" required>
+  Array of job objects matching the query criteria.
+  
+  <Expandable title="Job Object">
+    <ResponseField name="id" type="string">
+      Unique job identifier.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Current job status (`queued`, `processing`, `completed`, `failed`).
+    </ResponseField>
+    <ResponseField name="type" type="string">
+      Job type - always `transcription` currently.
+    </ResponseField>
+    <ResponseField name="fileName" type="string">
+      Original filename of the processed file.
+    </ResponseField>
+    <ResponseField name="fileSize" type="integer">
+      File size in bytes.
+    </ResponseField>
+    <ResponseField name="duration" type="number">
+      Audio duration in seconds (for completed jobs).
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message (for failed jobs only).
+    </ResponseField>
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp when job was created.
+    </ResponseField>
+    <ResponseField name="completedAt" type="string">
+      ISO 8601 timestamp when job completed (for completed jobs).
+    </ResponseField>
+    <ResponseField name="resultAvailable" type="boolean">
+      Whether results are available for download.
+    </ResponseField>
+    <ResponseField name="estimatedCompletion" type="string">
+      Estimated completion time (for processing jobs).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pagination" type="object" required>
+  Pagination information for navigating through results.
+  
+  <Expandable title="Pagination Object">
+    <ResponseField name="page" type="integer">
+      Current page number.
+    </ResponseField>
+    <ResponseField name="limit" type="integer">
+      Number of items per page.
+    </ResponseField>
+    <ResponseField name="total" type="integer">
+      Total number of jobs matching the query.
+    </ResponseField>
+    <ResponseField name="totalPages" type="integer">
+      Total number of pages available.
+    </ResponseField>
+    <ResponseField name="hasNext" type="boolean">
+      Whether there are more pages after the current one.
+    </ResponseField>
+    <ResponseField name="hasPrev" type="boolean">
+      Whether there are pages before the current one.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Usage
+
+<CodeGroup>
+```javascript JavaScript
+async function listJobs(options = {}) {
+  const params = new URLSearchParams();
+  
+  if (options.page) params.append('page', options.page);
+  if (options.limit) params.append('limit', options.limit);
+  if (options.status) params.append('status', options.status);
+
+  const response = await fetch(`/jobs?${params}`, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to list jobs: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Get recent completed jobs
+const completedJobs = await listJobs({
+  status: 'completed',
+  limit: 10
+});
+
+console.log(`Found ${completedJobs.pagination.total} completed jobs`);
+completedJobs.jobs.forEach(job => {
+  console.log(`- ${job.fileName}: ${job.duration}s`);
+});
+
+// Paginate through all jobs
+async function getAllJobs() {
+  let allJobs = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const result = await listJobs({ page, limit: 50 });
+    allJobs.push(...result.jobs);
+    
+    hasMore = result.pagination.hasNext;
+    page++;
+  }
+
+  return allJobs;
+}
+```
+
+```python Python
+import requests
+
+def list_jobs(api_key, page=1, limit=20, status=None):
+    url = 'https://api.sonartext.com/jobs'
+    
+    params = {
+        'page': page,
+        'limit': limit
+    }
+    
+    if status:
+        params['status'] = status
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}'
+    }
+    
+    response = requests.get(url, params=params, headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to list jobs: {response.text}")
+
+# Get failed jobs for debugging
+failed_jobs = list_jobs(
+    api_key='stx_live_your_api_key',
+    status='failed',
+    limit=50
+)
+
+print(f"Found {failed_jobs['pagination']['total']} failed jobs")
+
+for job in failed_jobs['jobs']:
+    print(f"Job {job['id']}: {job['error']}")
+
+# Get all jobs with pagination
+def get_all_jobs(api_key):
+    all_jobs = []
+    page = 1
+    
+    while True:
+        result = list_jobs(api_key, page=page, limit=100)
+        all_jobs.extend(result['jobs'])
+        
+        if not result['pagination']['hasNext']:
+            break
+        
+        page += 1
+    
+    return all_jobs
+
+all_jobs = get_all_jobs('stx_live_your_api_key')
+print(f"Total jobs: {len(all_jobs)}")
+```
+
+```curl cURL
+# Get first page of completed jobs
+curl -X GET 'https://api.sonartext.com/jobs?status=completed&limit=10' \
+  -H 'Authorization: Bearer stx_live_your_api_key'
+
+# Get second page of all jobs
+curl -X GET 'https://api.sonartext.com/jobs?page=2&limit=25' \
+  -H 'Authorization: Bearer stx_live_your_api_key'
+```
+</CodeGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Recent Jobs
+{
+  "jobs": [
+    {
+      "id": "clp2x3q4y0002ab2cde3fghij",
+      "status": "completed",
+      "type": "transcription",
+      "fileName": "meeting-recording.wav",
+      "fileSize": 52428800,
+      "duration": 1847.3,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "completedAt": "2024-01-15T10:45:30.000Z",
+      "resultAvailable": true
+    },
+    {
+      "id": "clp2x3q4y0003ab2cde3fghij",
+      "status": "processing",
+      "type": "transcription",
+      "fileName": "interview.mp3",
+      "fileSize": 31457280,
+      "createdAt": "2024-01-15T11:00:00.000Z",
+      "estimatedCompletion": "2024-01-15T11:12:00.000Z",
+      "resultAvailable": false
+    },
+    {
+      "id": "clp2x3q4y0004ab2cde3fghij",
+      "status": "failed",
+      "type": "transcription",
+      "fileName": "corrupted-audio.wav",
+      "fileSize": 15728640,
+      "error": "Unable to decode audio file: invalid format",
+      "createdAt": "2024-01-15T11:15:00.000Z",
+      "completedAt": "2024-01-15T11:15:45.000Z",
+      "resultAvailable": false
+    },
+    {
+      "id": "clp2x3q4y0005ab2cde3fghij",
+      "status": "queued",
+      "type": "transcription",
+      "fileName": "podcast-episode-42.mp3",
+      "fileSize": 89128960,
+      "createdAt": "2024-01-15T11:30:00.000Z",
+      "resultAvailable": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 156,
+    "totalPages": 8,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+</ResponseExample>
+
+## Job Status Filtering
+
+<Tabs>
+<Tab title="Completed Jobs">
+Get all successfully completed jobs with results available.
+
+```javascript
+const completedJobs = await listJobs({ status: 'completed' });
+
+// Filter by duration for longer content
+const longJobs = completedJobs.jobs.filter(job => job.duration > 1800); // 30+ minutes
+console.log(`Found ${longJobs.length} jobs longer than 30 minutes`);
+```
+</Tab>
+
+<Tab title="Failed Jobs">
+Debug failed jobs to understand processing issues.
+
+```javascript  
+const failedJobs = await listJobs({ status: 'failed' });
+
+// Group errors by type
+const errorCounts = {};
+failedJobs.jobs.forEach(job => {
+  const errorType = job.error.split(':')[0];
+  errorCounts[errorType] = (errorCounts[errorType] || 0) + 1;
+});
+
+console.log('Error types:', errorCounts);
+```
+</Tab>
+
+<Tab title="Processing Jobs">
+Monitor currently processing jobs and their estimated completion.
+
+```javascript
+const processingJobs = await listJobs({ status: 'processing' });
+
+processingJobs.jobs.forEach(job => {
+  const eta = new Date(job.estimatedCompletion);
+  const timeLeft = Math.max(0, eta - new Date()) / 1000 / 60; // minutes
+  
+  console.log(`${job.fileName}: ~${Math.ceil(timeLeft)} minutes remaining`);
+});
+```
+</Tab>
+
+<Tab title="Queued Jobs">
+Check the queue to see pending work.
+
+```javascript
+const queuedJobs = await listJobs({ status: 'queued' });
+
+console.log(`${queuedJobs.pagination.total} jobs in queue`);
+
+// Estimate total queue time (rough calculation)
+const avgProcessingTime = 2; // minutes per job (estimate)
+const totalQueueTime = queuedJobs.pagination.total * avgProcessingTime;
+
+console.log(`Estimated queue completion: ${totalQueueTime} minutes`);
+```
+</Tab>
+</Tabs>
+
+## Advanced Filtering & Analysis
+
+<CodeGroup>
+```javascript Job Analytics Dashboard
+async function getJobAnalytics() {
+  // Get all jobs from the last 30 days
+  const allJobs = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const result = await listJobs({ page, limit: 100 });
+    
+    // Filter for last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentJobs = result.jobs.filter(job => 
+      new Date(job.createdAt) > thirtyDaysAgo
+    );
+    
+    allJobs.push(...recentJobs);
+    hasMore = result.pagination.hasNext && recentJobs.length > 0;
+    page++;
+  }
+
+  // Calculate analytics
+  const analytics = {
+    total: allJobs.length,
+    completed: allJobs.filter(j => j.status === 'completed').length,
+    failed: allJobs.filter(j => j.status === 'failed').length,
+    processing: allJobs.filter(j => j.status === 'processing').length,
+    queued: allJobs.filter(j => j.status === 'queued').length,
+    
+    totalDuration: allJobs
+      .filter(j => j.duration)
+      .reduce((sum, j) => sum + j.duration, 0),
+    
+    avgFileSize: allJobs.length ? 
+      allJobs.reduce((sum, j) => sum + j.fileSize, 0) / allJobs.length : 0,
+    
+    successRate: allJobs.length ?
+      (allJobs.filter(j => j.status === 'completed').length / allJobs.length * 100).toFixed(1) : 0
+  };
+
+  return analytics;
+}
+
+const stats = await getJobAnalytics();
+console.log(`Success rate: ${stats.successRate}%`);
+console.log(`Total processing time: ${(stats.totalDuration / 3600).toFixed(1)} hours`);
+```
+
+```python Recent Jobs Monitor
+import requests
+from datetime import datetime, timedelta
+
+def monitor_recent_jobs(api_key, hours=24):
+    """Monitor jobs from the last N hours."""
+    
+    jobs = []
+    page = 1
+    cutoff_time = datetime.now() - timedelta(hours=hours)
+    
+    while True:
+        result = list_jobs(api_key, page=page, limit=100)
+        
+        page_jobs = []
+        for job in result['jobs']:
+            job_time = datetime.fromisoformat(job['createdAt'].replace('Z', '+00:00'))
+            if job_time > cutoff_time:
+                page_jobs.append(job)
+        
+        jobs.extend(page_jobs)
+        
+        # Stop if we've gone past the cutoff time or no more pages
+        if not page_jobs or not result['pagination']['hasNext']:
+            break
+        
+        page += 1
+    
+    # Group by status
+    by_status = {}
+    for job in jobs:
+        status = job['status']
+        if status not in by_status:
+            by_status[status] = []
+        by_status[status].append(job)
+    
+    print(f"Jobs in last {hours} hours:")
+    for status, job_list in by_status.items():
+        print(f"  {status}: {len(job_list)}")
+        
+        if status == 'failed':
+            print("    Recent failures:")
+            for job in job_list[:5]:  # Show first 5 failures
+                print(f"      {job['fileName']}: {job['error']}")
+    
+    return jobs
+
+# Monitor jobs from last 6 hours
+recent_jobs = monitor_recent_jobs('stx_live_your_api_key', hours=6)
+```
+</CodeGroup>
+
+## Pagination Best Practices
+
+<AccordionGroup>
+<Accordion title="📄 Efficient Pagination">
+  Use appropriate page sizes (20-50 for UI, 100 for batch processing) to balance performance and memory usage.
+</Accordion>
+
+<Accordion title="🔄 Handle Page Changes">
+  Always check `hasNext` and `hasPrev` before navigating to avoid empty pages.
+</Accordion>
+
+<Accordion title="📊 Progressive Loading">
+  Load the first page immediately, then fetch additional pages in the background for smoother UX.
+</Accordion>
+
+<Accordion title="💾 Caching Strategy">
+  Cache recent pages but invalidate cache when new jobs are created to maintain consistency.
+</Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<AccordionGroup>
+<Accordion title="📊 Dashboard Display">
+  Show recent job activity, processing queue status, and failure rates in admin dashboards.
+</Accordion>
+
+<Accordion title="🔍 Troubleshooting">
+  Filter failed jobs to identify patterns in errors and improve error handling.
+</Accordion>
+
+<Accordion title="📈 Analytics">
+  Analyze job patterns, processing times, and success rates over time.
+</Accordion>
+
+<Accordion title="🔄 Queue Management">
+  Monitor queue depth and processing times to optimize resource allocation.
+</Accordion>
+
+<Accordion title="👥 User Management">
+  Display user-specific job history and processing status in customer-facing applications.
+</Accordion>
+</AccordionGroup>
+
+<Card title="Get Job Details" icon="magnifying-glass" href="/api-reference/jobs/get">
+  Get detailed information about a specific job
+</Card>
+
+<Card title="Get Job Results" icon="download" href="/api-reference/jobs/result">
+  Download transcription results for completed jobs
+</Card>
