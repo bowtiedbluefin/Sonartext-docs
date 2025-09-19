@@ -2,24 +2,22 @@ openapi: 3.0.3
 info:
   title: Sonartext Transcription API
   description: |
-    High-performance transcription API with OpenAI compatibility, R2 multipart uploads, and zero-bandwidth-cost processing.
+    High-performance transcription API with OpenAI compatibility and reliable multipart uploads.
     
     ## Upload Methods
-    **🆕 R2 Multipart Uploads** (Recommended for files >100MB):
-    - Supports files up to 6GB+
-    - Zero bandwidth costs via Cloudflare R2
-    - Parallel part uploads with retry capability
-    - Browser-to-R2 direct upload (bypasses API limits)
+    **Multipart Uploads** (Recommended for files >100MB):
+    - Supports files up to 6GB per file
+    - Reliable uploads with retry capability and resume support
+    - Reduces timeouts and connection issues with large files
+    - Parallel part uploads for faster transfers
     
-    **Legacy Direct Uploads** (For existing clients):
-    - Supports files up to 2GB
+    **Direct Uploads** (For existing clients):
+    - Supports files up to 2GB per file
     - Traditional multipart/form-data upload
     
     ## Authentication
-    **For R2 uploads** (new endpoints):
+    **For multipart uploads** (new endpoints):
     ```
-    Authorization: Bearer firebase_id_token_here
-    # OR (easier for API users)
     Authorization: Bearer stx_live_your_api_key_here
     ```
     
@@ -30,7 +28,7 @@ info:
     
     ## File Formats
     Supports audio and video files:
-    - **R2 uploads**: Up to 6GB per file
+    - **Multipart uploads**: Up to 6GB per file
     - **Direct uploads**: Up to 2GB per file
     
     ## Rate Limits
@@ -56,7 +54,7 @@ paths:
       summary: Health check endpoint
       description: |
         Returns the health status of all services including database, transcription engine, 
-        R2 storage connectivity, and system cleanup processes.
+        external storage connectivity, and system cleanup processes.
       tags: [System]
       responses:
         '200':
@@ -74,19 +72,19 @@ paths:
 
   /v1/uploads/initiate:
     post:
-      summary: Initiate multipart upload to R2
+      summary: Initiate multipart upload
       description: |
         Start a multipart upload for large files (>100MB recommended).
-        Returns presigned URLs for uploading file parts directly to Cloudflare R2.
+        Returns presigned URLs for uploading file parts directly to external storage.
         
         **Benefits**: 
-        - Supports files up to 5GB+ 
-        - Zero bandwidth costs
-        - Resumable uploads with retry capability
+        - Supports files up to 6GB per file
+        - Reliable uploads with retry capability and resume support
+        - Reduces timeouts and connection issues with large files
         - Parallel part uploads for faster transfers
       tags: [Uploads]
       security:
-        - FirebaseAuth: []
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -146,11 +144,11 @@ paths:
       summary: Complete multipart upload and start transcription
       description: |
         Complete the multipart upload and automatically create a transcription job.
-        Provide the ETags returned from each part upload to R2, plus all transcription parameters.
+        Provide the ETags returned from each part upload, plus all transcription parameters.
         This is where you specify how the uploaded file should be transcribed.
       tags: [Uploads]
       security:
-        - FirebaseAuth: []
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -176,14 +174,14 @@ paths:
                         description: Part number
                       etag:
                         type: string
-                        description: ETag returned by R2 for this part
+                        description: ETag returned by external storage for this part
                         example: "\"d41d8cd98f00b204e9800998ecf8427e\""
                 # Transcription Parameters
                 model:
                   type: string
-                  default: whisper-1
-                  description: Model to use (ignored, always uses large-v3)
-                  example: whisper-1
+                  default: whisper-v3-large-turbo
+                  description: Model to use for transcription
+                  example: whisper-v3-large-turbo
                 language:
                   type: string
                   description: Language code (ISO 639-1). Auto-detected if not specified.
@@ -222,10 +220,10 @@ paths:
               anyOf:
                 - required: [file]
                   description: Direct file upload
-                - required: [r2_bucket, r2_key] 
-                  description: R2 object reference
+                - required: [storage_bucket, storage_key] 
+                  description: External storage object reference
                 - required: [download_url]
-                  description: S3 presigned URL download
+                  description: S3/GCS presigned URL download
       responses:
         '200':
           description: Upload completed and job created
@@ -243,10 +241,10 @@ paths:
   /v1/uploads/abort:
     post:
       summary: Abort multipart upload
-      description: Cancel an in-progress multipart upload and cleanup R2 resources
+      description: Cancel an in-progress multipart upload and cleanup storage resources
       tags: [Uploads]
       security:
-        - FirebaseAuth: []
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
@@ -281,7 +279,7 @@ paths:
       description: Check the current status and progress of a multipart upload
       tags: [Uploads]
       security:
-        - FirebaseAuth: []
+        - ApiKeyAuth: []
       parameters:
         - name: uploadId
           in: path
@@ -304,12 +302,6 @@ paths:
       summary: Generate speech from text
       description: |
         OpenAI-compatible text-to-speech endpoint that converts text into natural-sounding audio.
-        
-        **Features**:
-        - Multiple voice options with different accents and styles
-        - Adjustable speech speed (0.25x to 4.0x)
-        - Multiple audio formats (MP3, WAV, FLAC, AAC)
-        - High-quality neural TTS models
         
         **Authentication**: API key required (stx_live_* format)
         **Billing**: Charged per character processed
@@ -481,18 +473,18 @@ paths:
         OpenAI-compatible transcription endpoint with multiple file source options:
         
         **1. Direct Upload** (most common): Upload file directly in request body
-        **2. R2 Reference** (for re-transcription): Use `r2Key` from previous `/v1/uploads/initiate` response
-        **3. S3 Presigned URL** (for integrations): Provide presigned URL for us to download
+        **2. Storage Reference** (for re-transcription): Use `storage_key` from previous `/v1/uploads/initiate` response
+        **3. S3/GCS Presigned URL** (for integrations): Provide presigned URL for us to download
         
         **When to use each:**
         - **Direct Upload**: Small files (<150MB), immediate results
-        - **R2 Reference**: Re-transcribe files using `r2Key` from `/v1/uploads/initiate` response
-        - **S3 URL**: Integration with external storage (your own S3/R2/GCS buckets)
+        - **Storage Reference**: Re-transcribe files using `storage_key` from `/v1/uploads/initiate` response
+        - **S3/GCS URL**: Integration with external storage (your own S3/GCS buckets)
         
-        **💡 Example R2 Re-transcription Workflow:**
-        1. Upload large file: `POST /v1/uploads/initiate` → get `r2Key`
+        **Example Re-transcription Workflow:**
+        1. Upload large file: `POST /v1/uploads/initiate` → get `storage_key`
         2. Complete upload: `POST /v1/uploads/complete` → transcribe with settings A
-        3. Re-transcribe same file: `POST /v1/audio/transcriptions` with `r2Key` + settings B
+        3. Re-transcribe same file: `POST /v1/audio/transcriptions` with `storage_key` + settings B
         
         **Streaming**: Responses are streamed in real-time without buffering.
         **Billing**: Charged per second of audio transcribed.
@@ -510,14 +502,14 @@ paths:
                   type: string
                   format: binary
                   description: Audio or video file to transcribe (for direct upload)
-                r2_bucket:
+                storage_bucket:
                   type: string
-                  description: R2 bucket name (use "sonartext-uploads" unless you have your own R2)
+                  description: External storage bucket name
                   example: "sonartext-uploads"
-                r2_key:
+                storage_key:
                   type: string
                   description: |
-                    R2 object key returned from `/v1/uploads/initiate` response.
+                    Storage object key returned from `/v1/uploads/initiate` response.
                     Use this to re-transcribe already uploaded files with different parameters.
                   example: "uploads/user123/1234567890-audio.wav"
                 download_url:
@@ -525,13 +517,13 @@ paths:
                   format: uri
                   description: |
                     Presigned URL to download file from S3-compatible storage.
-                    For integrations where files are stored in your own S3/R2/GCS buckets.
+                    For integrations where files are stored in your own S3/GCS buckets.
                   example: "https://mybucket.s3.amazonaws.com/file.wav?X-Amz-Signature=..."
                 model:
                   type: string
-                  default: whisper-1
-                  description: Model to use (ignored, always uses large-v3)
-                  example: whisper-1
+                  default: whisper-v3-large-turbo
+                  description: Model to use for transcription
+                  example: whisper-v3-large-turbo
                 language:
                   type: string
                   description: Language code (ISO 639-1). Auto-detected if not specified.
@@ -753,11 +745,9 @@ paths:
       summary: Generate upload token
       description: |
         Generate short-lived token for browser uploads. 
-        Supports both Firebase authentication (for browser clients) and API key authentication (for direct API access).
-        Use your API key for easy Swagger UI testing.
+        Supports API key authentication for secure upload access.
       tags: [Auth]
       security:
-        - FirebaseAuth: []
         - ApiKeyAuth: []
       responses:
         '200':
@@ -782,7 +772,7 @@ paths:
                     type: integer
                     description: Token expiration timestamp
         '401':
-          description: Invalid Firebase token
+          description: Invalid API token
 
 
 components:
@@ -793,11 +783,11 @@ components:
       bearerFormat: API Key
       description: Use your API key with stx_live_ prefix
 
-    FirebaseAuth:
+    UploadAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Firebase ID token for R2 upload operations
+      description: Upload token for multipart upload operations
 
   schemas:
     HealthStatus:
@@ -817,7 +807,7 @@ components:
           properties:
             database:
               $ref: '#/components/schemas/ServiceHealth'
-            morpheus:
+            transcription:
               $ref: '#/components/schemas/ServiceHealth'
             storage:
               $ref: '#/components/schemas/ServiceHealth'
@@ -858,10 +848,10 @@ components:
           type: object
           description: Service-specific health details
           example:
-            # For storage service (R2):
-            r2_connectivity: "ok"
+            # For storage service:
+            connectivity: "ok"
             bucket: "sonartext-uploads"
-            # For morpheus service:
+            # For transcription service:
             model_loaded: true
             gpu_memory_used: "4.2GB"
 
@@ -1047,15 +1037,15 @@ components:
           type: string
           description: Unique identifier for this multipart upload
           example: "clp2x3q4y0001ab2cde3fghij"
-        r2UploadId:
+        storageUploadId:
           type: string
-          description: R2 internal upload ID
+          description: External storage internal upload ID
           example: "2~Vg5SJ5RRQON9vnefrO2XgB"
-        r2Key:
+        storage_key:
           type: string
           description: |
-            R2 object key where your file will be stored.
-            💡 Save this! You can use it with /v1/audio/transcriptions to re-transcribe 
+            Storage object key where your file will be stored.
+            Save this! You can use it with /v1/audio/transcriptions to re-transcribe 
             the same file with different parameters without re-uploading.
           example: "uploads/user123/1703123456-audio.wav"
         partSize:
@@ -1093,9 +1083,9 @@ components:
           type: string
           description: Completed upload ID
           example: "clp2x3q4y0001ab2cde3fghij"
-        r2Key:
+        storage_key:
           type: string
-          description: R2 object key for the uploaded file
+          description: Storage object key for the uploaded file
           example: "uploads/user123/1703123456-audio.wav"
         status:
           type: string
@@ -1147,28 +1137,15 @@ components:
               size:
                 type: string
 
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error code
-        message:
-          type: string
-          description: Human-readable error message
-        details:
-          type: object
-          description: Additional error details
-
 tags:
   - name: System
     description: System health and status endpoints
   - name: Text-to-Speech
     description: Text-to-speech conversion endpoints
   - name: Transcription
-    description: Audio/video transcription endpoints (supports direct upload, R2 references, S3 URLs)
+    description: Audio/video transcription endpoints (supports direct upload, storage references, S3/GCS URLs)
   - name: Uploads
-    description: R2 multipart upload endpoints for large files
+    description: Multipart upload endpoints for large files
   - name: Jobs
     description: Job management and status endpoints  
   - name: Auth

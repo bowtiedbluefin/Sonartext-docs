@@ -25,73 +25,6 @@ OpenAI-compatible text-to-speech endpoint that converts text into natural-soundi
 </Card>
 </CardGroup>
 
-## Request Parameters
-
-<ParamField body="input" type="string" required>
-  The text to generate audio for. Maximum length is 4,096 characters.
-  
-  **Example**: `"Hello, this is a sample text for speech synthesis."`
-</ParamField>
-
-<ParamField body="model" type="string" default="tts-kokoro">
-  TTS model to use for speech generation.
-  
-  **Available models**: `tts-kokoro` (currently the only supported model)
-  **Example**: `"tts-kokoro"`
-</ParamField>
-
-<ParamField body="voice" type="string" default="af_sky">
-  Voice to use for speech generation. Choose from 60+ available voices.
-  
-  **Categories**:
-  - **af_** - Adult Female voices (American accent)
-  - **am_** - Adult Male voices (American accent)  
-  - **bf_** - British Female voices
-  - **bm_** - British Male voices
-  - **zf_** - Chinese Female voices
-  - **zm_** - Chinese Male voices
-  - **ff_** - French Female voices
-  - **hf_** - Hindi Female voices
-  - **hm_** - Hindi Male voices
-  - **if_** - Italian Female voices
-  - **im_** - Italian Male voices
-  - **jf_** - Japanese Female voices
-  - **jm_** - Japanese Male voices
-  - **pf_** - Portuguese Female voices
-  - **pm_** - Portuguese Male voices
-  - **ef_** - Spanish Female voices
-  - **em_** - Spanish Male voices
-  
-  **Popular options**: `af_sky`, `am_adam`, `bf_alice`, `bm_daniel`
-</ParamField>
-
-<ParamField body="response_format" type="string" default="mp3">
-  Audio format for the output file.
-  
-  **Options**:
-  - `mp3` - Most common, good compression
-  - `wav` - Uncompressed, high quality
-  - `flac` - Lossless compression
-  - `aac` - Good compression, widely supported
-  - `opus` - Modern codec, excellent for streaming
-  - `pcm` - Raw audio data
-</ParamField>
-
-<ParamField body="speed" type="number" default="1.0">
-  Speed of speech generation. Range: 0.25 to 4.0.
-  
-  **Examples**:
-  - `0.5` - Half speed (slower)
-  - `1.0` - Normal speed
-  - `1.5` - 1.5x faster
-  - `2.0` - Double speed
-</ParamField>
-
-<ParamField body="streaming" type="boolean" default="false">
-  Whether to stream the audio response as it's generated.
-  
-  **Note**: Currently not implemented - responses are always buffered.
-</ParamField>
 
 ## Available Voices
 
@@ -427,25 +360,6 @@ Text-to-speech is billed per character processed. Pricing is based on your subsc
 - **Minimum charge**: 1 character minimum per request
 - **Rate limits**: Based on your plan (10-100 requests/minute)
 
-### Cost Optimization Tips
-
-<AccordionGroup>
-<Accordion title="📝 Optimize Text Length">
-  Remove unnecessary characters, extra spaces, and formatting that don't affect speech.
-</Accordion>
-
-<Accordion title="🔄 Cache Common Phrases">
-  Generate and cache audio for frequently used phrases to avoid repeated API calls.
-</Accordion>
-
-<Accordion title="⚡ Batch Processing">
-  Combine multiple short texts into longer requests when possible.
-</Accordion>
-
-<Accordion title="🎯 Format Selection">
-  Use appropriate compression formats - MP3/AAC for most use cases, WAV only when needed.
-</Accordion>
-</AccordionGroup>
 
 ## Best Practices
 

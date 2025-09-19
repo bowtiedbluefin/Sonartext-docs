@@ -87,26 +87,7 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Dashboard",
-          "href": "https://app.sonartext.com",
-          "icon": "chart-line"
-        },
-        {
-          "anchor": "Support",
-          "href": "https://sonartext.com/support",
-          "icon": "messages-question"
-        },
-        {
-          "anchor": "GitHub",
-          "href": "https://github.com/sonartext",
-          "icon": "github"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",
