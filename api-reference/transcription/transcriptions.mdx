@@ -3,7 +3,7 @@ title: 'Create Transcription'
 openapi: 'POST /v1/audio/transcriptions'
 ---
 
-OpenAI-compatible transcription endpoint that converts audio and video files to text with advanced AI capabilities.
+OpenAI-compatible audio transcription endpoint with multiple file source options and advanced transcription features.
 
 ## Key Features
 
@@ -88,88 +88,6 @@ curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
 ```
 </Tab>
 </Tabs>
-
-
-## Response Format
-
-The response format depends on the `response_format` parameter:
-
-### JSON Response (verbose_json)
-
-<ResponseField name="text" type="string" required>
-  Complete transcription text.
-</ResponseField>
-
-<ResponseField name="segments" type="array" required>
-  Array of transcription segments with timestamps.
-  
-  <Expandable title="Segment Object">
-    <ResponseField name="id" type="integer">
-      Segment identifier.
-    </ResponseField>
-    <ResponseField name="start" type="number">
-      Start time in seconds.
-    </ResponseField>
-    <ResponseField name="end" type="number">
-      End time in seconds.
-    </ResponseField>
-    <ResponseField name="text" type="string">
-      Segment text content.
-    </ResponseField>
-    <ResponseField name="speaker" type="string">
-      Speaker ID (if diarization enabled).
-    </ResponseField>
-    <ResponseField name="confidence" type="number">
-      Confidence score (0.0 to 1.0).
-    </ResponseField>
-  </Expandable>
-</ResponseField>
-
-<ResponseField name="words" type="array">
-  Word-level timestamps (if word granularity requested).
-  
-  <Expandable title="Word Object">
-    <ResponseField name="word" type="string">
-      Individual word.
-    </ResponseField>
-    <ResponseField name="start" type="number">
-      Word start time in seconds.
-    </ResponseField>
-    <ResponseField name="end" type="number">
-      Word end time in seconds.
-    </ResponseField>
-    <ResponseField name="confidence" type="number">
-      Word confidence score.
-    </ResponseField>
-    <ResponseField name="speaker" type="string">
-      Speaker ID (if diarization enabled).
-    </ResponseField>
-  </Expandable>
-</ResponseField>
-
-<ResponseField name="language" type="string" required>
-  Detected language code.
-</ResponseField>
-
-<ResponseField name="duration" type="number" required>
-  Total audio duration in seconds.
-</ResponseField>
-
-<ResponseField name="speakers" type="array">
-  Speaker information (if diarization enabled).
-  
-  <Expandable title="Speaker Object">
-    <ResponseField name="id" type="string">
-      Speaker identifier.
-    </ResponseField>
-    <ResponseField name="label" type="string">
-      Speaker label (e.g., "Speaker 1").
-    </ResponseField>
-    <ResponseField name="segments" type="array">
-      Array of segment IDs for this speaker.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
 
 ## Example Usage
 
