@@ -3,7 +3,35 @@ title: 'Create Transcription'
 openapi: 'POST /v1/audio/transcriptions'
 ---
 
-OpenAI-compatible transcription endpoint with multiple file source options. Convert audio and video files to text with advanced features like speaker diarization, multiple output formats, and flexible input methods.
+OpenAI-compatible transcription endpoint that converts audio and video files to text with advanced AI capabilities.
+
+## Key Features
+
+<CardGroup cols={2}>
+<Card title="Multiple File Sources" icon="upload">
+  Direct upload, storage references, or S3/GCS URLs for flexible integration
+</Card>
+
+<Card title="Speaker Diarization" icon="users">
+  Identify and separate different speakers in your audio automatically
+</Card>
+
+<Card title="Multiple Formats" icon="file-lines">
+  Output as JSON, text, SRT, VTT, or other formats for any use case
+</Card>
+
+<Card title="Advanced Timestamps" icon="clock">
+  Word-level or segment-level timestamps for precise audio alignment
+</Card>
+
+<Card title="Language Detection" icon="globe">
+  Automatic language detection or specify from 100+ supported languages
+</Card>
+
+<Card title="High Accuracy" icon="badge-check">
+  Powered by Whisper Large v3 model for industry-leading transcription quality
+</Card>
+</CardGroup>
 
 ## File Source Options
 
@@ -19,12 +47,12 @@ OpenAI-compatible transcription endpoint with multiple file source options. Conv
 curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
   -H 'Authorization: Bearer stx_live_your_api_key' \
   -F 'file=@audio.wav' \
-  -F 'model=whisper-1'
+  -F 'model=whisper-v3-large-turbo'
 ```
 </Tab>
 
-<Tab title="R2 Reference">
-**For re-transcription**: Use `r2_key` from previous multipart upload.
+<Tab title="Storage Reference">
+**For re-transcription**: Use `storage_key` from previous multipart upload.
 
 - Reuse uploaded files with different parameters
 - No re-upload needed
@@ -35,17 +63,17 @@ curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
   -H 'Authorization: Bearer stx_live_your_api_key' \
   -H 'Content-Type: application/json' \
   -d '{
-    "r2_bucket": "sonartext-uploads",
-    "r2_key": "uploads/user123/1234567890-audio.wav",
-    "model": "whisper-1"
+    "storage_bucket": "sonartext-uploads",
+    "storage_key": "uploads/user123/1234567890-audio.wav",
+    "model": "whisper-v3-large-turbo"
   }'
 ```
 </Tab>
 
-<Tab title="S3 Presigned URL">
+<Tab title="S3/GCS Presigned URL">
 **For integrations**: Provide presigned URL for external storage.
 
-- Integrate with your own S3/R2/GCS buckets
+- Integrate with your own S3/GCS buckets
 - No file transfer through our API
 - Great for large files in external storage
 
@@ -55,108 +83,12 @@ curl -X POST 'https://api.sonartext.com/v1/audio/transcriptions' \
   -H 'Content-Type: application/json' \
   -d '{
     "download_url": "https://mybucket.s3.amazonaws.com/file.wav?X-Amz-Signature=...",
-    "model": "whisper-1"
+    "model": "whisper-v3-large-turbo"
   }'
 ```
 </Tab>
 </Tabs>
 
-## Request Parameters
-
-### File Source (Choose One)
-
-<ParamField body="file" type="file">
-  Audio or video file to transcribe (for direct upload method).
-  
-  **Supported formats**: MP3, WAV, FLAC, AAC, MP4, MOV, AVI, and many more
-  **Max size**: 2GB for direct uploads
-</ParamField>
-
-<ParamField body="r2_bucket" type="string">
-  R2 bucket name (use "sonartext-uploads" unless you have your own R2).
-  
-  **Required with**: `r2_key`
-  **Example**: `"sonartext-uploads"`
-</ParamField>
-
-<ParamField body="r2_key" type="string">
-  R2 object key from `/v1/uploads/initiate` response. Use this to re-transcribe files.
-  
-  **Required with**: `r2_bucket`
-  **Example**: `"uploads/user123/1234567890-audio.wav"`
-</ParamField>
-
-<ParamField body="download_url" type="string">
-  Presigned URL to download file from S3-compatible storage.
-  
-  **Use case**: Integration with external storage systems
-  **Example**: `"https://mybucket.s3.amazonaws.com/file.wav?X-Amz-Signature=..."`
-</ParamField>
-
-### Transcription Parameters
-
-<ParamField body="model" type="string" default="whisper-1">
-  Model to use for transcription. Currently ignored - always uses large-v3 for best quality.
-  
-  **Example**: `"whisper-1"`
-</ParamField>
-
-<ParamField body="language" type="string">
-  Language code (ISO 639-1) for the audio. Auto-detected if not specified.
-  
-  **Common codes**: `en` (English), `es` (Spanish), `fr` (French), `de` (German), `zh` (Chinese)
-</ParamField>
-
-<ParamField body="response_format" type="string" default="json">
-  Output format for transcription results.
-  
-  **Options**:
-  - `json`: Basic JSON with text and segments
-  - `verbose_json`: Detailed JSON with timestamps and metadata
-  - `text`: Plain text only
-  - `srt`: SubRip subtitle format
-  - `vtt`: WebVTT subtitle format
-</ParamField>
-
-<ParamField body="timestamp_granularities" type="array" default="[segment]">
-  Level of timestamp detail to include.
-  
-  **Options**:
-  - `segment`: Timestamps for each segment/sentence
-  - `word`: Timestamps for each individual word
-  
-  **Example**: `["segment", "word"]` for both levels
-</ParamField>
-
-<ParamField body="enable_diarization" type="boolean" default="false">
-  Enable speaker identification to distinguish between different speakers.
-  
-  <Note>
-    When enabled, each segment includes a speaker ID. Use `min_speakers` and `max_speakers` to guide the process.
-  </Note>
-</ParamField>
-
-<ParamField body="min_speakers" type="integer">
-  Minimum number of speakers expected (1-10). Only used with diarization.
-  
-  **Example**: `2` for a conversation between two people
-</ParamField>
-
-<ParamField body="max_speakers" type="integer">
-  Maximum number of speakers expected (1-10). Only used with diarization.
-  
-  **Example**: `5` for a meeting with up to 5 participants
-</ParamField>
-
-<ParamField body="output_content" type="string" default="both">
-  What to include in the transcription output.
-  
-  **Options**:
-  - `both`: Include both text and timestamps
-  - `text_only`: Only transcribed text
-  - `timestamps_only`: Only timestamp information  
-  - `metadata_only`: Only metadata (language, duration, etc.)
-</ParamField>
 
 ## Response Format
 
