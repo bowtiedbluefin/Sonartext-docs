@@ -470,24 +470,7 @@ paths:
     post:
       summary: Transcribe audio file
       description: |
-        OpenAI-compatible transcription endpoint with multiple file source options:
-        
-        **1. Direct Upload** (most common): Upload file directly in request body
-        **2. Storage Reference** (for re-transcription): Use `storage_key` from previous `/v1/uploads/initiate` response
-        **3. S3/GCS Presigned URL** (for integrations): Provide presigned URL for us to download
-        
-        **When to use each:**
-        - **Direct Upload**: Small files (<150MB), immediate results
-        - **Storage Reference**: Re-transcribe files using `storage_key` from `/v1/uploads/initiate` response
-        - **S3/GCS URL**: Integration with external storage (your own S3/GCS buckets)
-        
-        **Example Re-transcription Workflow:**
-        1. Upload large file: `POST /v1/uploads/initiate` → get `storage_key`
-        2. Complete upload: `POST /v1/uploads/complete` → transcribe with settings A
-        3. Re-transcribe same file: `POST /v1/audio/transcriptions` with `storage_key` + settings B
-        
-        **Streaming**: Responses are streamed in real-time without buffering.
-        **Billing**: Charged per second of audio transcribed.
+        OpenAI-compatible audio transcription endpoint with multiple file source options and advanced transcription features.
       tags: [Transcription]
       security:
         - ApiKeyAuth: []
