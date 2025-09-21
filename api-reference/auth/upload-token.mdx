@@ -137,7 +137,7 @@ async function getUploadToken(apiKey) {
 Once you have an upload token, you can use it to:
 
 1. **Initiate multipart uploads** with `/v1/uploads/initiate`
-2. **Upload file parts** directly to R2 using the presigned URLs
+2. **Upload file parts** directly to cloud storage using the presigned URLs
 3. **Complete uploads** with `/v1/uploads/complete`
 
 <Warning>
@@ -145,7 +145,7 @@ Upload tokens have a limited lifetime (typically 1 hour). Make sure to check the
 </Warning>
 
 <Note>
-This endpoint is primarily designed for browser-based applications that need to perform uploads directly to R2 storage. Server-to-server integrations can often use API keys directly with other endpoints.
+This endpoint is primarily designed for browser-based applications that need to perform uploads directly to cloud storage. Server-to-server integrations can often use API keys directly with other endpoints.
 </Note>
 
 ## Error Responses

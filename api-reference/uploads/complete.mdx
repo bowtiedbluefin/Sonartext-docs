@@ -3,7 +3,7 @@ title: 'Complete Multipart Upload'
 openapi: 'POST /v1/uploads/complete'
 ---
 
-Complete the multipart upload and automatically create a transcription job. Provide the ETags returned from each part upload to R2, plus all transcription parameters.
+Complete the multipart upload and automatically create a transcription job. Provide the ETags returned from each part upload to cloud storage, plus all transcription parameters.
 
 ## Request Parameters
 
@@ -16,14 +16,14 @@ Complete the multipart upload and automatically create a transcription job. Prov
 </ParamField>
 
 <ParamField body="parts" type="array" required>
-  Array of completed parts with their ETags from R2 uploads.
+  Array of completed parts with their ETags from cloud storage uploads.
   
   <Expandable title="Part Object">
     <ParamField body="parts[].partNumber" type="integer" required>
       Part number (1-based indexing). Must match the order from initiate response.
     </ParamField>
     <ParamField body="parts[].etag" type="string" required>
-      ETag returned by R2 when uploading this part. Include the surrounding quotes.
+      ETag returned by cloud storage when uploading this part. Include the surrounding quotes.
       
       Example: `"\"d41d8cd98f00b204e9800998ecf8427e\""`
     </ParamField>
@@ -115,8 +115,8 @@ Complete the multipart upload and automatically create a transcription job. Prov
   Example: `"clp2x3q4y0001ab2cde3fghij"`
 </ResponseField>
 
-<ResponseField name="r2Key" type="string" required>
-  R2 object key for the uploaded file. Save this to re-transcribe the file later with different parameters.
+<ResponseField name="storageKey" type="string" required>
+  Storage object key for the uploaded file. Save this to re-transcribe the file later with different parameters.
   
   Example: `"uploads/user123/1703123456-audio.wav"`
 </ResponseField>
@@ -212,7 +212,7 @@ def complete_upload(upload_id, parts, upload_token, **transcription_options):
     if response.status_code == 200:
         data = response.json()
         print(f"Transcription job created: {data['jobId']}")
-        print(f"R2 key for re-transcription: {data['r2Key']}")
+        print(f"Storage key for re-transcription: {data['storageKey']}")
         return data
     else:
         raise Exception(f"Upload completion failed: {response.text}")
@@ -327,10 +327,10 @@ Here's a complete example of the multipart upload workflow:
 ## Re-transcription
 
 <Tip>
-Save the `r2Key` from the response to re-transcribe the same file later with different parameters without re-uploading!
+Save the `storageKey` from the response to re-transcribe the same file later with different parameters without re-uploading!
 </Tip>
 
-You can use the `r2Key` with the `/v1/audio/transcriptions` endpoint:
+You can use the `storageKey` with the `/v1/audio/transcriptions` endpoint:
 
 ```javascript
 // Re-transcribe with different settings
@@ -341,8 +341,8 @@ const reTranscription = await fetch('/v1/audio/transcriptions', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    r2_bucket: 'sonartext-uploads',
-    r2_key: 'uploads/user123/1703123456-audio.wav', // From complete response
+    storage_bucket: 'sonartext-uploads',
+    storage_key: 'uploads/user123/1703123456-audio.wav', // From complete response
     response_format: 'srt', // Different format
     enable_diarization: false // Different settings
   })
@@ -380,5 +380,5 @@ const reTranscription = await fetch('/v1/audio/transcriptions', {
 </ResponseExample>
 
 <Warning>
-Make sure all parts have been successfully uploaded to R2 before calling the complete endpoint. The API will validate that all expected parts are present.
+Make sure all parts have been successfully uploaded to cloud storage before calling the complete endpoint. The API will validate that all expected parts are present.
 </Warning>

@@ -3,9 +3,9 @@ title: 'Initiate Multipart Upload'
 openapi: 'POST /v1/uploads/initiate'
 ---
 
-Start a multipart upload for large files (>100MB recommended). Returns presigned URLs for uploading file parts directly to Cloudflare R2.
+Start a multipart upload for large files (>100MB recommended). Returns presigned URLs for uploading file parts directly to cloud storage.
 
-## Benefits of R2 Multipart Uploads
+## Benefits of Multipart Uploads
 
 <CardGroup cols={2}>
 <Card title="Large File Support" icon="file">
@@ -13,7 +13,7 @@ Start a multipart upload for large files (>100MB recommended). Returns presigned
 </Card>
 
 <Card title="Zero Bandwidth Costs" icon="coins">
-  Direct uploads to R2 bypass API bandwidth limits
+  Direct uploads to cloud storage bypass API bandwidth limits
 </Card>
 
 <Card title="Resumable Uploads" icon="rotate-right">
@@ -21,7 +21,7 @@ Start a multipart upload for large files (>100MB recommended). Returns presigned
 </Card>
 
 <Card title="Browser Direct Upload" icon="browser">
-  Upload directly from browser to R2, bypassing API limits
+  Upload directly from browser to cloud storage, bypassing API limits
 </Card>
 </CardGroup>
 
@@ -77,14 +77,14 @@ Start a multipart upload for large files (>100MB recommended). Returns presigned
   Example: `"clp2x3q4y0001ab2cde3fghij"`
 </ResponseField>
 
-<ResponseField name="r2UploadId" type="string" required>
-  R2 internal upload ID used by Cloudflare R2.
+<ResponseField name="uploadId_internal" type="string" required>
+  Internal upload ID used by cloud storage.
   
   Example: `"2~Vg5SJ5RRQON9vnefrO2XgB"`
 </ResponseField>
 
-<ResponseField name="r2Key" type="string" required>
-  R2 object key where your file will be stored.
+<ResponseField name="storageKey" type="string" required>
+  Storage object key where your file will be stored.
   
   <Tip>
     **Save this key!** You can use it with `/v1/audio/transcriptions` to re-transcribe the same file with different parameters without re-uploading.

@@ -5,7 +5,7 @@ description: 'High-performance transcription and text-to-speech API with OpenAI 
 
 ## Welcome to Sonartext API
 
-The Sonartext API provides high-performance transcription and text-to-speech capabilities with OpenAI compatibility, R2 multipart uploads, and zero-bandwidth-cost processing.
+The Sonartext API provides high-performance transcription and text-to-speech capabilities with OpenAI compatibility, multipart uploads, and zero-bandwidth-cost processing.
 
 <CardGroup cols={2}>
 <Card title="Transcription" icon="microphone" href="/api-reference/transcription/transcriptions">
@@ -17,7 +17,7 @@ The Sonartext API provides high-performance transcription and text-to-speech cap
 </Card>
 
 <Card title="File Uploads" icon="cloud-arrow-up" href="/api-reference/uploads/initiate">
-  Upload large files efficiently using R2 multipart uploads with support for files up to 6GB.
+  Upload large files efficiently using multipart uploads with support for files up to 6GB.
 </Card>
 
 <Card title="Job Management" icon="list-check" href="/api-reference/jobs/list">
@@ -28,16 +28,16 @@ The Sonartext API provides high-performance transcription and text-to-speech cap
 ## Key Features
 
 <AccordionGroup>
-<Accordion title="🆕 R2 Multipart Uploads (Recommended for files >100MB)">
+<Accordion title="🆕 Multipart Uploads (Recommended for files >100MB)">
 - Supports files up to 6GB+
-- Zero bandwidth costs via Cloudflare R2
+- Zero bandwidth costs via cloud storage
 - Parallel part uploads with retry capability
-- Browser-to-R2 direct upload (bypasses API limits)
+- Browser-to-storage direct upload (bypasses API limits)
 </Accordion>
 
 <Accordion title="📝 Advanced Transcription">
 - OpenAI-compatible transcription endpoint
-- Multiple file source options (direct upload, R2 reference, S3 presigned URLs)
+- Multiple file source options (direct upload, storage reference, S3 presigned URLs)
 - Speaker identification (diarization)
 - Multiple output formats (JSON, text, SRT, VTT)
 - Word-level and segment-level timestamps
@@ -60,11 +60,11 @@ The Sonartext API provides high-performance transcription and text-to-speech cap
 
 ## Upload Methods
 
-### R2 Multipart Uploads (Recommended)
-For files larger than 100MB, use our R2 multipart upload system:
+### Multipart Uploads (Recommended)
+For files larger than 100MB, use our multipart upload system:
 
 1. **Initiate**: Start a multipart upload with `/v1/uploads/initiate`
-2. **Upload**: Send file parts directly to Cloudflare R2 using presigned URLs
+2. **Upload**: Send file parts directly to cloud storage using presigned URLs
 3. **Complete**: Finish the upload and start transcription with `/v1/uploads/complete`
 
 ### Legacy Direct Uploads
@@ -102,7 +102,7 @@ Sonartext supports a wide range of audio and video file formats:
 
 | Upload Method | Max File Size | Supported Formats |
 |---------------|---------------|-------------------|
-| **R2 Uploads** | Up to 6GB | All audio/video formats |
+| **Multipart Uploads** | Up to 6GB | All audio/video formats |
 | **Direct Uploads** | Up to 2GB | All audio/video formats |
 
 Common formats include: MP3, WAV, FLAC, AAC, MP4, MOV, AVI, and many more.

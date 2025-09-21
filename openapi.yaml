@@ -1012,7 +1012,7 @@ components:
           type: string
           description: Job ID if applicable
 
-    # NEW: R2 Multipart Upload Schemas
+    # NEW: Multipart Upload Schemas
     MultipartUploadInit:
       type: object
       properties:
@@ -1045,7 +1045,7 @@ components:
           items:
             type: string
             format: uri
-            example: "https://account.r2.cloudflarestorage.com/bucket/key?X-Amz-Algorithm=..."
+            example: "https://storage.example.com/bucket/key?X-Amz-Algorithm=..."
         expiresAt:
           type: string
           format: date-time

@@ -3,7 +3,7 @@ title: 'Abort Multipart Upload'
 openapi: 'POST /v1/uploads/abort'
 ---
 
-Cancel an in-progress multipart upload and cleanup R2 resources. Use this endpoint when you need to cancel an upload that won't be completed.
+Cancel an in-progress multipart upload and cleanup storage resources. Use this endpoint when you need to cancel an upload that won't be completed.
 
 ## When to Use
 
@@ -228,7 +228,7 @@ async function uploadWithRetry(file, maxRetries = 3) {
 <Info>
 When you abort an upload, the following resources are automatically cleaned up:
 
-- **R2 Storage**: All uploaded parts are deleted from Cloudflare R2
+- **Cloud Storage**: All uploaded parts are deleted from cloud storage
 - **Database Records**: Upload metadata is marked as aborted
 - **Presigned URLs**: Remaining unused presigned URLs are invalidated
 </Info>

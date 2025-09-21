@@ -3,7 +3,7 @@ title: 'Health Check'
 openapi: 'GET /health'
 ---
 
-The health endpoint provides comprehensive system status information including database connectivity, transcription engine status, R2 storage connectivity, and system cleanup processes.
+The health endpoint provides comprehensive system status information including database connectivity, transcription engine status, cloud storage connectivity, and system cleanup processes.
 
 ## Response Details
 
@@ -30,7 +30,7 @@ The health check returns detailed information about all critical system componen
       Transcription engine status and GPU utilization
     </ResponseField>
     <ResponseField name="storage" type="ServiceHealth">
-      R2 storage connectivity and bucket access
+      Cloud storage connectivity and bucket access
     </ResponseField>
     <ResponseField name="cleanup" type="ServiceHealth">
       System cleanup processes status
@@ -104,7 +104,7 @@ The health check returns detailed information about all critical system componen
       "status": "healthy",
       "latency": 89.1,
       "details": {
-        "r2_connectivity": "ok",
+        "storage_connectivity": "ok",
         "bucket": "sonartext-uploads"
       }
     },

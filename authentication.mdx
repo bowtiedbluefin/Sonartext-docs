@@ -21,7 +21,7 @@ API keys are the authentication method for all integrations and use cases.
 </Step>
 
 <Step title="Generate a Key">
-  Click "Generate New Key" to create your API key. Keys start with `stx_live_` for production or `stx_test_` for testing.
+  Click "Generate New Key" to create your API key. Keys start with `stx_live_`.
 </Step>
 
 <Step title="Secure Your Key">
@@ -47,8 +47,8 @@ const response = await fetch('/v1/audio/transcriptions', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    r2_bucket: 'sonartext-uploads',
-    r2_key: 'uploads/user123/audio.wav',
+    storage_bucket: 'sonartext-uploads',
+    storage_key: 'uploads/user123/audio.wav',
     model: 'whisper-1'
   })
 });
@@ -66,8 +66,8 @@ response = requests.post(
     'https://api.sonartext.com/v1/audio/transcriptions',
     headers=headers,
     json={
-        'r2_bucket': 'sonartext-uploads',
-        'r2_key': 'uploads/user123/audio.wav',
+        'storage_bucket': 'sonartext-uploads',
+        'storage_key': 'uploads/user123/audio.wav',
         'model': 'whisper-1'
     }
 )
@@ -81,8 +81,8 @@ const apiKey = process.env.SONARTEXT_API_KEY;
 const response = await axios.post(
   'https://api.sonartext.com/v1/audio/transcriptions',
   {
-    r2_bucket: 'sonartext-uploads',
-    r2_key: 'uploads/user123/audio.wav',
+    storage_bucket: 'sonartext-uploads',
+    storage_key: 'uploads/user123/audio.wav',
     model: 'whisper-1'
   },
   {
@@ -97,21 +97,21 @@ const response = await axios.post(
 
 ## Upload Token Authentication
 
-For browser-based applications that need to perform direct uploads to R2 storage, you can generate temporary upload tokens using your API key.
+For browser-based applications that need to perform direct uploads to cloud storage, you can generate temporary upload tokens using your API key.
 
 ### When to Use Upload Tokens
 
 <AccordionGroup>
 <Accordion title="✅ Direct Browser Uploads">
-  When implementing file uploads directly from the browser to R2 storage without exposing your main API key.
+  When implementing file uploads directly from the browser to cloud storage without exposing your main API key.
 </Accordion>
 
 <Accordion title="✅ Secure Client-Side Operations">
   When you need temporary, limited-scope tokens for client-side upload operations.
 </Accordion>
 
-<Accordion title="✅ R2 Multipart Uploads">
-  For the `/v1/uploads/*` endpoints that support multipart uploads to R2.
+<Accordion title="✅ Multipart Uploads">
+  For the `/v1/uploads/*` endpoints that support multipart uploads to cloud storage.
 </Accordion>
 </AccordionGroup>
 
@@ -134,7 +134,7 @@ For browser-based applications that need to perform direct uploads to R2 storage
 </Step>
 
 <Step title="Use Upload Token">
-  Use the upload token for R2 upload operations.
+  Use the upload token for cloud storage upload operations.
   
   ```javascript
   const response = await fetch('/v1/uploads/initiate', {
@@ -167,7 +167,7 @@ For browser-based applications that need to perform direct uploads to R2 storage
 - **Never expose API keys** in client-side code, public repositories, or logs
 - **Use environment variables** to store API keys securely
 - **Rotate keys regularly** and immediately if compromised
-- **Use separate keys** for development, staging, and production environments
+- **Use separate keys** for different environments as needed
 - **Monitor API key usage** for unusual activity
 </Accordion>
 
@@ -193,11 +193,8 @@ For browser-based applications that need to perform direct uploads to R2 storage
 ### Server-Side (.env file)
 
 ```bash
-# Production API key
+# API key
 SONARTEXT_API_KEY=stx_live_1234567890abcdef...
-
-# Test API key for development
-SONARTEXT_TEST_API_KEY=stx_test_1234567890abcdef...
 
 # Environment
 NODE_ENV=production
@@ -270,7 +267,7 @@ const apiKey = import.meta.env.VITE_SONARTEXT_API_KEY;    // Vite
 ## Testing Authentication
 
 <Tabs>
-<Tab title="Test API Key">
+<Tab title="Test Your API Key">
 ```bash
 # Test your API key with a simple request
 curl -X GET 'https://api.sonartext.com/health' \
@@ -353,7 +350,7 @@ function authenticateAPI(req, res, next) {
   
   const apiKey = authHeader.substring(7); // Remove 'Bearer ' prefix
   
-  if (!apiKey.startsWith('stx_live_') && !apiKey.startsWith('stx_test_')) {
+  if (!apiKey.startsWith('stx_live_')) {
     return res.status(401).json({ error: 'Invalid API key format' });
   }
   
@@ -398,7 +395,7 @@ def authenticate_request():
     
     api_key = auth_header[7:]  # Remove 'Bearer ' prefix
     
-    if not (api_key.startswith('stx_live_') or api_key.startswith('stx_test_')):
+    if not api_key.startswith('stx_live_'):
         return None, 'Invalid API key format'
     
     return api_key, None
