@@ -3,29 +3,16 @@ title: 'Generate Upload Token'
 openapi: 'POST /auth/upload-token'
 ---
 
-Generate a short-lived token for browser uploads. This endpoint supports both Firebase authentication (for browser clients) and API key authentication (for direct API access).
+Generate a short-lived token for browser uploads. This endpoint uses API key authentication to create temporary tokens for client-side upload operations.
 
-## Authentication Methods
+## Authentication
 
-<Tabs>
-<Tab title="API Key">
-Use your Sonartext API key for easy testing and server-to-server communication:
+Use your Sonartext API key to generate upload tokens:
 
 ```bash
 curl -X POST 'https://api.sonartext.com/auth/upload-token' \
   -H 'Authorization: Bearer stx_live_your_api_key_here'
 ```
-</Tab>
-
-<Tab title="Firebase Token">
-For browser clients using Firebase authentication:
-
-```bash
-curl -X POST 'https://api.sonartext.com/auth/upload-token' \
-  -H 'Authorization: Bearer firebase_id_token_here'
-```
-</Tab>
-</Tabs>
 
 ## Response Fields
 
@@ -73,11 +60,11 @@ curl -X POST 'https://api.sonartext.com/auth/upload-token' \
 ### JavaScript/Browser
 
 ```javascript
-async function getUploadToken() {
+async function getUploadToken(apiKey) {
   const response = await fetch('/auth/upload-token', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${firebaseIdToken}`
+      'Authorization': `Bearer ${apiKey}`
     }
   });
   
@@ -164,12 +151,12 @@ This endpoint is primarily designed for browser-based applications that need to 
 ## Error Responses
 
 <ResponseExample>
-```json Invalid Firebase Token
+```json Invalid API Key
 {
   "error": "invalid_token",
-  "message": "Invalid Firebase ID token provided",
+  "message": "Invalid API key provided",
   "details": {
-    "code": "auth/invalid-token"
+    "code": "auth/invalid-api-key"
   }
 }
 ```

@@ -75,23 +75,22 @@ For existing clients and smaller files:
 
 ## Authentication
 
-<Tabs>
-<Tab title="API Key (Recommended)">
 Use your Sonartext API key for all endpoints:
 
 ```bash
 Authorization: Bearer stx_live_your_api_key_here
 ```
-</Tab>
 
-<Tab title="Firebase Token">
-For browser clients using R2 uploads:
+For browser applications that need to perform uploads, generate a temporary upload token using your API key:
 
 ```bash
-Authorization: Bearer firebase_id_token_here
+# Generate upload token
+curl -X POST 'https://api.sonartext.com/auth/upload-token' \
+  -H 'Authorization: Bearer stx_live_your_api_key_here'
+
+# Use upload token for uploads
+Authorization: Bearer upload_token_here
 ```
-</Tab>
-</Tabs>
 
 <Card title="Get Your API Key" icon="key" href="https://app.sonartext.com/keys">
   Generate and manage your API keys in the Sonartext dashboard
